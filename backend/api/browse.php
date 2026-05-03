@@ -59,13 +59,48 @@ if (empty($basePath) || !is_dir($basePath)) {
 
 $folders = [];
 $iterator = new DirectoryIterator($basePath);
+
+$imageSetPaths = [];
+$imageSets = [];
+if (!empty($path)) {
+    $stmt = $db->prepare("
+        SELECT id, title, cover_image, image_count, folder_path
+        FROM image_sets
+        WHERE parent_path = ? OR parent_path = ?
+        ORDER BY date_added DESC
+    ");
+    $stmt->execute([$path, '/' . $path]);
+    $imageSets = $stmt->fetchAll();
+
+    foreach ($imageSets as &$set) {
+        $dirPath = $set['folder_path'];
+        if (strpos($dirPath, '/home/pi') === 0) {
+            $dirPath = '/disks' . substr($dirPath, 8);
+            $set['folder_path'] = $dirPath;
+        } else {
+            $dirPath = '/disks' . $dirPath;
+            $set['folder_path'] = $dirPath;
+        }
+        $coverImage = $set['cover_image'];
+        $set['cover_image'] = $dirPath . '/' . $coverImage;
+        $imageSetPaths[] = $dirPath;
+    }
+    unset($set);
+}
+
 foreach ($iterator as $item) {
     if ($item->isDot()) continue;
     if ($item->isDir()) {
-        $folders[] = [
-            'name' => $item->getFilename(),
-            'path' => $path . '/' . $item->getFilename()
-        ];
+        $folderName = $item->getFilename();
+        $folderPath = $path . '/' . $folderName;
+        $fullFolderPath = $basePath . '/' . $folderName;
+        
+        if (!in_array($fullFolderPath, $imageSetPaths)) {
+            $folders[] = [
+                'name' => $folderName,
+                'path' => $folderPath
+            ];
+        }
     }
 }
 
@@ -84,28 +119,6 @@ $files = $stmt->fetchAll();
 foreach ($files as &$file) {
     if (!empty($file['thumb'])) {
         $file['thumb'] = NfoParser::addDisksPrefix($file['thumb'], $file['video_path']);
-    }
-}
-
-$imageSets = [];
-if (!empty($path)) {
-    $stmt = $db->prepare("
-        SELECT id, title, cover_image, image_count, folder_path
-        FROM image_sets
-        WHERE parent_path = ? OR parent_path = ?
-        ORDER BY date_added DESC
-    ");
-    $stmt->execute([$path, '/' . $path]);
-    $imageSets = $stmt->fetchAll();
-
-    foreach ($imageSets as &$set) {
-        if (str_starts_with($set['folder_path'], '/home/pi')) {
-            $set['folder_path'] = substr($set['folder_path'], 8);
-        }
-        $dirPath = $set['folder_path'];
-        $coverImage = $set['cover_image'];
-        $coverPath = $dirPath . '/' . $coverImage;
-        $set['cover_image'] = $coverPath;
     }
 }
 
