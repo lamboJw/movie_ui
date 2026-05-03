@@ -73,13 +73,8 @@ if (!empty($path)) {
     $imageSets = $stmt->fetchAll();
 
     foreach ($imageSets as &$set) {
-        $dirPath = $set['folder_path'];
-        if (strpos($dirPath, '/home/pi') === 0) {
-            $dirPath = substr($dirPath, 8);
-        }
-        $set['folder_path'] = $dirPath;
-        $set['cover_image'] = $dirPath . '/' . $set['cover_image'];
-        $imageSetPaths[] = $dirPath;
+        $set['cover_image'] = NfoParser::addDisksPrefix($set['cover_image'], $set['folder_path']);
+        $imageSetPaths[] = $set['folder_path'];
     }
     unset($set);
 }
@@ -90,7 +85,7 @@ foreach ($iterator as $item) {
         $folderName = $item->getFilename();
         $folderPath = $path . '/' . $folderName;
         $fullFolderPath = $basePath . '/' . $folderName;
-        
+
         if (!in_array($fullFolderPath, $imageSetPaths)) {
             $folders[] = [
                 'name' => $folderName,

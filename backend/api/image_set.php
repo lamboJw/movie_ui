@@ -38,8 +38,7 @@ $images = json_decode($imageSet['images'], true) ?: [];
 
 $processedImages = [];
 foreach ($images as $image) {
-    $fullPath = $folderPath . '/' . $image;
-    $processedImages[] = $fullPath;
+    $processedImages[] = NfoParser::addDisksPrefix($image, $folderPath);
 }
 
 $imageSet['images'] = $processedImages;

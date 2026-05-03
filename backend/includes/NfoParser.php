@@ -130,7 +130,7 @@ class NfoParser {
                     }
                 }
             }
-            
+
             // 备用方式：仅使用url_prefix
             if (!empty($imageConfig['url_prefix'])) {
                 $videoFolders = $config['video_folders'] ?? [];
@@ -154,13 +154,13 @@ class NfoParser {
         if (filter_var($thumb, FILTER_VALIDATE_URL)) {
             return $thumb;
         }
-        
+
         // 去掉/disks/前缀
         $prefix = '/disks/';
         if (strpos($thumb, $prefix) === 0) {
             return substr($thumb, strlen($prefix));
         }
-        
+
         return $thumb;
     }
 
@@ -181,11 +181,10 @@ class NfoParser {
             return $thumb;
         }
         if (!empty($videoPath)) {
-            $videoDir = dirname($videoPath);
-            if (strpos($videoDir, '/home/pi') === 0) {
-                $videoDir = substr($videoDir, 8);
+            if (strpos($videoPath, '/home/pi') === 0) {
+                $videoPath = substr($videoPath, 8);
             }
-            return $videoDir . '/' . ltrim($thumb, '/');
+            return $videoPath . '/' . ltrim($thumb, '/');
         }
         return $thumb;
     }
