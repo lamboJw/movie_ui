@@ -15,17 +15,27 @@ require_once __DIR__ . '/../includes/NfoParser.php';
 $config = require __DIR__ . '/../config/config.php';
 $db = Database::getInstance()->getConnection();
 
-// 随机获取一部电影
+// 先随机获取一个电影ID
+$stmt = $db->prepare("SELECT id FROM movies ORDER BY RAND() LIMIT 1");
+$stmt->execute();
+$randomMovie = $stmt->fetch();
+
+if (!$randomMovie) {
+    http_response_code(404);
+    echo json_encode(['error' => '没有找到电影']);
+    exit;
+}
+
+// 再获取完整电影信息
 $stmt = $db->prepare("
     SELECT m.id, m.title, m.original_title, m.year, m.rating, m.thumb, m.video_path, m.plot, m.runtime, m.director, m.date_added,
            GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') as genres
     FROM movies m
     LEFT JOIN movie_genres mg ON mg.movie_id = m.id
     LEFT JOIN genres g ON g.id = mg.genre_id
-    ORDER BY RAND()
-    LIMIT 1
+    WHERE m.id = ?
 ");
-$stmt->execute();
+$stmt->execute([$randomMovie['id']]);
 $movie = $stmt->fetch();
 
 if (!$movie) {
