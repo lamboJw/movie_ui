@@ -38,19 +38,19 @@ $images = json_decode($imageSet['images'], true) ?: [];
 $processedImages = [];
 foreach ($images as $image) {
     $fullPath = $folderPath . '/' . $image;
-    $processedImages[] = addDisksPrefix($fullPath, $folderPath);
+    $processedImages[] = $fullPath;
 }
 
 $imageSet['images'] = $processedImages;
 $imageSet['image_count'] = count($processedImages);
 
 if (strpos($imageSet['folder_path'], '/home/pi') === 0) {
-    $imageSet['folder_path'] = '/disks' . substr($imageSet['folder_path'], 8);
+    $imageSet['folder_path'] = substr($imageSet['folder_path'], 8);
 }
 
 $coverImage = $imageSet['cover_image'];
-$coverPath = $folderPath . '/' . $coverImage;
-$imageSet['cover_image'] = addDisksPrefix($coverPath, $folderPath);
+$coverPath = $imageSet['folder_path'] . '/' . $coverImage;
+$imageSet['cover_image'] = $coverPath;
 
 $imageSet['parent_path'] = convertVideoPath($imageSet['parent_path'], $config['video_folders'] ?? []);
 
@@ -60,7 +60,7 @@ function addDisksPrefix($thumb, $videoPath = null) {
     if (empty($thumb)) return '';
     if (strpos($thumb, 'http') === 0) return $thumb;
     if (empty($videoPath)) return '/disks' . $thumb;
-    
+
     foreach ($videoPath as $folder) {
         if (strpos($thumb, $folder) === 0) {
             return '/disks' . substr($thumb, strlen($folder));
@@ -71,7 +71,7 @@ function addDisksPrefix($thumb, $videoPath = null) {
 
 function convertVideoPath($videoPath, $videoFolders) {
     if (empty($videoPath)) return '';
-    
+
     foreach ($videoFolders as $folder) {
         if (strpos($videoPath, $folder) === 0) {
             $relativePath = substr($videoPath, strlen($folder));

@@ -67,7 +67,7 @@ class VideoScanner {
 
         foreach ($iterator as $item) {
             $filename = $item->getFilename();
-            
+
             if ($item->isFile()) {
                 $ext = strtolower($item->getExtension());
                 if (in_array($ext, $videoExts)) {
@@ -123,8 +123,9 @@ class VideoScanner {
         $coverImage = $images[0];
         $parentPath = dirname($dirPath);
         foreach ($this->config['video_folders'] as $folder) {
-            if (strpos($dirPath, $folder) === 0) {
-                $parentPath = substr($parentPath, strlen($folder));
+            if (str_starts_with($dirPath, $folder)) {
+                $folderParent = dirname($folder);
+                $parentPath = substr($parentPath, strlen($folderParent)+1);
                 break;
             }
         }

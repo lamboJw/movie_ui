@@ -85,9 +85,6 @@ foreach ($files as &$file) {
     if (!empty($file['thumb'])) {
         $file['thumb'] = NfoParser::addDisksPrefix($file['thumb'], $file['video_path']);
     }
-    if (strpos($file['video_path'], '/home/pi') === 0) {
-        $file['video_path'] = '/disks' . substr($file['video_path'], 8);
-    }
 }
 
 $imageSets = [];
@@ -102,27 +99,14 @@ if (!empty($path)) {
     $imageSets = $stmt->fetchAll();
 
     foreach ($imageSets as &$set) {
+        if (str_starts_with($set['folder_path'], '/home/pi')) {
+            $set['folder_path'] = substr($set['folder_path'], 8);
+        }
         $dirPath = $set['folder_path'];
         $coverImage = $set['cover_image'];
         $coverPath = $dirPath . '/' . $coverImage;
-        $set['cover_image'] = addDisksPrefix($coverPath, $dirPath);
-        
-        if (strpos($set['folder_path'], '/home/pi') === 0) {
-            $set['folder_path'] = '/disks' . substr($set['folder_path'], 8);
-        }
+        $set['cover_image'] = $coverPath;
     }
-}
-
-function addDisksPrefix($thumb, $videoPath = null) {
-    if (empty($thumb)) return '';
-    if (strpos($thumb, 'http') === 0) return $thumb;
-    
-    foreach ($videoFolders = $GLOBALS['config']['video_folders'] ?? [] as $folder) {
-        if (strpos($thumb, $folder) === 0) {
-            return '/disks' . substr($thumb, strlen($folder));
-        }
-    }
-    return '/disks' . $thumb;
 }
 
 usort($folders, fn($a, $b) => strcmp($a['name'], $b['name']));
