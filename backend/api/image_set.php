@@ -10,6 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/Database.php';
+require_once __DIR__ . '/../includes/NfoParser.php';
 
 $db = Database::getInstance()->getConnection();
 $config = require __DIR__ . '/../config/config.php';
@@ -50,27 +51,11 @@ if (strpos($imageSet['folder_path'], '/home/pi') === 0) {
 
 $coverImage = $imageSet['cover_image'];
 $coverPath = $imageSet['folder_path'] . '/' . $coverImage;
-$imageSet['cover_image'] = $coverPath;
+$imageSet['cover_image'] = NfoParser::addDisksPrefix($coverPath, $imageSet['folder_path']);
 
 $imageSet['parent_path'] = convertVideoPath($imageSet['parent_path'], $config['video_folders'] ?? []);
 
 echo json_encode($imageSet);
-
-function addDisksPrefix($thumb, $videoPath = null) {
-    if (empty($thumb)) return '';
-    if (strpos($thumb, 'http') === 0) return $thumb;
-    if (strpos($thumb, '/home/pi') === 0) {
-        return substr($thumb, 8);
-    }
-    if (empty($videoPath)) return $thumb;
-    
-    foreach ($videoPath as $folder) {
-        if (strpos($thumb, $folder) === 0) {
-            return substr($thumb, strlen($folder));
-        }
-    }
-    return $thumb;
-}
 
 function convertVideoPath($videoPath, $videoFolders) {
     if (empty($videoPath)) return '';
