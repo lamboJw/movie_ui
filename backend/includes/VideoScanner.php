@@ -142,7 +142,7 @@ class VideoScanner {
 
         $filename = pathinfo($videoPath, PATHINFO_FILENAME);
         $videoDir = dirname($videoPath);
-        $isMediaDir = strpos($videoDir, '/disk1/.hidden/Media') !== false;
+        $isMediaDir = strpos($videoDir, '/disk/.hidden/Media') !== false;
 
         // thumb 搜索优先级
         $thumbSearch = $isMediaDir ? [
@@ -182,7 +182,7 @@ class VideoScanner {
         foreach ($candidates as $candidate) {
             $path = $dir . '/' . $candidate;
             if (file_exists($path)) {
-                return $path;
+                return $candidate;
             }
         }
         return null;
