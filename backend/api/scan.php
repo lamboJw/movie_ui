@@ -8,14 +8,22 @@ require_once __DIR__ . '/../includes/VideoScanner.php';
 $config = require __DIR__ . '/../config/config.php';
 
 try {
-    $scanner = new VideoScanner($config);
-    $results = $scanner->scanAll();
+    // 异步执行扫描
+    $scanScript = __DIR__ . '/../includes/ScanWorker.php';
+    $logFile = '/tmp/movie_scan.log';
+
+    // fork 后台进程执行扫描
+    $cmd = sprintf(
+        'php %s %s > %s 2>&1 &',
+        escapeshellarg($scanScript),
+        escapeshellarg(json_encode($config)),
+        escapeshellarg($logFile)
+    );
+    exec($cmd);
 
     echo json_encode([
         'success' => true,
-        'message' => '扫描完成',
-        'scan_mode' => $config['scan_mode'] ?? 'local',
-        'results' => $results
+        'message' => '扫描已在后台开始'
     ]);
 } catch (Exception $e) {
     http_response_code(500);
