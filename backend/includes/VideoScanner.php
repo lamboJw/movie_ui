@@ -155,11 +155,16 @@ class VideoScanner {
                 }
                 if (file_exists($thumbCandidate)) {
                     $movieData['thumb'] = $thumbCandidate;
+                } else {
+                    // 兜底: 优先 {文件名}.jpg，再 {文件名}.png
+                    $jpgCandidate = $videoDir . '/' . $filename . '.jpg';
+                    if (file_exists($jpgCandidate)) {
+                        $movieData['thumb'] = $jpgCandidate;
+                    } else {
+                        $movieData['thumb'] = $filename . '.png';
+                    }
                 }
-            }
-
-            // 如果还没找到，使用视频文件名+.png
-            if (empty($movieData['thumb'])) {
+            } else {
                 $movieData['thumb'] = $filename . '.png';
             }
         }
@@ -176,11 +181,16 @@ class VideoScanner {
                 }
                 if (file_exists($fanartCandidate)) {
                     $movieData['fanart'] = $fanartCandidate;
+                } else {
+                    // 兜底: 优先 {文件名}.jpg，再 {文件名}.png
+                    $jpgCandidate = $videoDir . '/' . $filename . '.jpg';
+                    if (file_exists($jpgCandidate)) {
+                        $movieData['fanart'] = $jpgCandidate;
+                    } else {
+                        $movieData['fanart'] = $filename . '.png';
+                    }
                 }
-            }
-
-            // 如果还没找到，使用视频文件名+.jpg
-            if (empty($movieData['fanart'])) {
+            } else {
                 $movieData['fanart'] = $filename . '.jpg';
             }
         }
