@@ -27,6 +27,7 @@ $director = trim($_GET['director'] ?? '');
 $actor = trim($_GET['actor'] ?? '');
 $minRating = $_GET['min_rating'] ?? '';
 $maxRating = $_GET['max_rating'] ?? '';
+$folder = $_GET['folder'] ?? '';
 
 // 构建查询
 $where = [];
@@ -66,6 +67,11 @@ if (!empty($minRating)) {
 if (!empty($maxRating)) {
     $where[] = "m.rating <= ?";
     $params[] = $maxRating;
+}
+
+if (!empty($folder)) {
+    $where[] = "m.video_path LIKE ?";
+    $params[] = "%/" . $folder . "/%";
 }
 
 $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';

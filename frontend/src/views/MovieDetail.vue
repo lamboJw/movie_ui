@@ -77,9 +77,18 @@ const goBack = () => {
   const lastMode = sessionStorage.getItem('lastViewMode') || 'list'
   
   if (lastMode === 'folder') {
-    router.push({ name: 'home', query: { mode: 'folder', path: lastPath } })
+    if (lastPath) {
+      router.push({ name: 'home', query: { mode: 'folder', path: lastPath } })
+    } else {
+      router.push({ name: 'home', query: { mode: 'folder' } })
+    }
   } else {
-    router.push('/')
+    // 列表模式
+    if (lastPath) {
+      router.push({ name: 'home', query: { mode: 'list', path: lastPath } })
+    } else {
+      router.push({ name: 'home' })
+    }
   }
 }
 

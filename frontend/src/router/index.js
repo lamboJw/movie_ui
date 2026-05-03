@@ -3,8 +3,8 @@ import MovieList from '../views/MovieList.vue'
 import MovieDetail from '../views/MovieDetail.vue'
 
 const routes = [
-  { path: '/', component: MovieList },
-  { path: '/movie/:id', component: MovieDetail, props: true }
+  { path: '/', name: 'home', component: MovieList },
+  { path: '/movie/:id', name: 'movie', component: MovieDetail, props: true }
 ]
 
 const router = createRouter({

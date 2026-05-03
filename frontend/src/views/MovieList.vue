@@ -59,6 +59,16 @@
 
     <!-- 视频列表模式 -->
     <div v-else class="list-view">
+      <!-- 面包屑导航 -->
+      <div class="breadcrumb" v-if="currentPath">
+        <span 
+          class="crumb" 
+          :class="{ disabled: !canGoBack }"
+          @click="goBack"
+        >← 返回</span>
+        <span class="current">{{ currentPath }}</span>
+      </div>
+
       <div v-if="loading" class="loading">加载中...</div>
       <div v-else-if="movies.length === 0" class="empty">
         <p>暂无电影数据</p>
@@ -108,10 +118,13 @@ const files = ref([])
 const switchMode = (mode) => {
   viewMode.value = mode
   localStorage.setItem('viewMode', mode)
+  sessionStorage.setItem('lastViewMode', mode)
   if (mode === 'folder') {
-    fetchBrowse()
+    const savedPath = sessionStorage.getItem('lastBrowsePath')
+    fetchBrowse(savedPath || '')
   } else {
-    fetchMovies()
+    const folder = currentPath.value
+    fetchMovies(folder)
   }
 }
 
@@ -124,6 +137,9 @@ const fetchBrowse = async (path = '') => {
     canGoBack.value = data.can_go_back
     folders.value = data.folders || []
     files.value = data.files || []
+    if (data.current_path !== undefined) {
+      sessionStorage.setItem('lastBrowsePath', data.current_path)
+    }
   } catch (e) {
     console.error('获取目录失败', e)
   } finally {
@@ -140,7 +156,12 @@ const goBack = () => {
   const parts = currentPath.value.split('/')
   parts.pop()
   const parentPath = parts.join('/')
-  fetchBrowse(parentPath)
+  if (viewMode.value === 'folder') {
+    fetchBrowse(parentPath)
+  } else {
+    fetchMovies(parentPath)
+  }
+  sessionStorage.setItem('lastBrowsePath', parentPath)
 }
 
 const openDetail = (file) => {
@@ -154,13 +175,19 @@ const openDetail = (file) => {
   }
 }
 
-const fetchMovies = async () => {
+const fetchMovies = async (folder = '') => {
   loading.value = true
   try {
     const params = { page: page.value, limit: 20, ...filters.value }
+    if (folder) {
+      params.folder = folder
+    }
     const res = await movieApi.getMovies(params)
     movies.value = res.data.movies
     totalPages.value = res.data.total_pages
+    currentPath.value = folder
+    canGoBack.value = folder !== ''
+    sessionStorage.setItem('lastBrowsePath', folder)
   } catch (e) {
     console.error('获取电影列表失败', e)
   } finally {
@@ -170,19 +197,19 @@ const fetchMovies = async () => {
 
 const changePage = (newPage) => {
   page.value = newPage
-  fetchMovies()
+  fetchMovies(currentPath.value)
 }
 
 const handleSearch = (search) => {
   filters.value.search = search
   page.value = 1
-  fetchMovies()
+  fetchMovies(currentPath.value)
 }
 
 const handleFilter = (newFilters) => {
   filters.value = { ...filters.value, ...newFilters }
   page.value = 1
-  fetchMovies()
+  fetchMovies(currentPath.value)
 }
 
 const triggerScan = async () => {
@@ -190,7 +217,7 @@ const triggerScan = async () => {
     loading.value = true
     await movieApi.scan()
     alert('扫描完成！')
-    fetchMovies()
+    fetchMovies(currentPath.value)
   }
 }
 
@@ -200,6 +227,10 @@ onMounted(() => {
     viewMode.value = 'folder'
     const path = route.query.path || ''
     fetchBrowse(path)
+  } else if (route.query.mode === 'list') {
+    viewMode.value = 'list'
+    const path = route.query.path || ''
+    fetchMovies(path)
   } else if (viewMode.value === 'folder') {
     fetchBrowse()
   } else {
