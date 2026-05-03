@@ -59,7 +59,7 @@ foreach ($imageSets as &$set) {
     $set['cover_image'] = addDisksPrefix($coverPath, $dirPath);
     
     if (strpos($set['folder_path'], '/home/pi') === 0) {
-        $set['folder_path'] = '/disks' . substr($set['folder_path'], 8);
+        $set['folder_path'] = substr($set['folder_path'], 8);
     }
     
     $set['parent_path'] = convertVideoPath($set['parent_path'], $config['video_folders'] ?? []);
@@ -68,14 +68,17 @@ foreach ($imageSets as &$set) {
 function addDisksPrefix($thumb, $videoPath = null) {
     if (empty($thumb)) return '';
     if (strpos($thumb, 'http') === 0) return $thumb;
-    if (empty($videoPath)) return '/disks' . $thumb;
+    if (strpos($thumb, '/home/pi') === 0) {
+        return substr($thumb, 8);
+    }
+    if (empty($videoPath)) return $thumb;
     
     foreach ($videoPath as $folder) {
         if (strpos($thumb, $folder) === 0) {
-            return '/disks' . substr($thumb, strlen($folder));
+            return substr($thumb, strlen($folder));
         }
     }
-    return '/disks' . $thumb;
+    return $thumb;
 }
 
 function convertVideoPath($videoPath, $videoFolders) {

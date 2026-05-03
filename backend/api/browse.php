@@ -75,14 +75,10 @@ if (!empty($path)) {
     foreach ($imageSets as &$set) {
         $dirPath = $set['folder_path'];
         if (strpos($dirPath, '/home/pi') === 0) {
-            $dirPath = '/disks' . substr($dirPath, 8);
-            $set['folder_path'] = $dirPath;
-        } else {
-            $dirPath = '/disks' . $dirPath;
-            $set['folder_path'] = $dirPath;
+            $dirPath = substr($dirPath, 8);
         }
-        $coverImage = $set['cover_image'];
-        $set['cover_image'] = $dirPath . '/' . $coverImage;
+        $set['folder_path'] = $dirPath;
+        $set['cover_image'] = $dirPath . '/' . $set['cover_image'];
         $imageSetPaths[] = $dirPath;
     }
     unset($set);

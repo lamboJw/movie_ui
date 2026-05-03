@@ -170,31 +170,23 @@ class NfoParser {
      * @param string|null $videoPath 视频文件路径，用于确定文件夹前缀
      */
     public static function addDisksPrefix($thumb, $videoPath = null) {
-        // 如果是完整URL，不处理
+        if (empty($thumb)) return '';
         if (filter_var($thumb, FILTER_VALIDATE_URL)) {
             return $thumb;
         }
-
-        // 如果已经有/disks/前缀，不重复添加
+        if (strpos($thumb, '/home/pi') === 0) {
+            return substr($thumb, 8);
+        }
         if (strpos($thumb, '/disks/') === 0) {
             return $thumb;
         }
-
-        if (!empty($thumb)) {
-            // 如果提供了视频路径，使用视频所在文件夹作为前缀基础
-            if (!empty($videoPath)) {
-                $videoDir = dirname($videoPath);
-                // 去掉 /home/pi 前缀
-                $basePath = '/home/pi';
-                if (strpos($videoDir, $basePath) === 0) {
-                    $videoDir = substr($videoDir, strlen($basePath));
-                }
-                return $videoDir . '/' . ltrim($thumb, '/');
+        if (!empty($videoPath)) {
+            $videoDir = dirname($videoPath);
+            if (strpos($videoDir, '/home/pi') === 0) {
+                $videoDir = substr($videoDir, 8);
             }
-            // 否则使用默认的/disks/前缀
-            return '/disks/' . ltrim($thumb, '/');
+            return $videoDir . '/' . ltrim($thumb, '/');
         }
-
         return $thumb;
     }
 

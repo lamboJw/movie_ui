@@ -59,14 +59,17 @@ echo json_encode($imageSet);
 function addDisksPrefix($thumb, $videoPath = null) {
     if (empty($thumb)) return '';
     if (strpos($thumb, 'http') === 0) return $thumb;
-    if (empty($videoPath)) return '/disks' . $thumb;
-
+    if (strpos($thumb, '/home/pi') === 0) {
+        return substr($thumb, 8);
+    }
+    if (empty($videoPath)) return $thumb;
+    
     foreach ($videoPath as $folder) {
         if (strpos($thumb, $folder) === 0) {
-            return '/disks' . substr($thumb, strlen($folder));
+            return substr($thumb, strlen($folder));
         }
     }
-    return '/disks' . $thumb;
+    return $thumb;
 }
 
 function convertVideoPath($videoPath, $videoFolders) {
