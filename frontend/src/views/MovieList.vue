@@ -478,4 +478,67 @@ onMounted(() => {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+@media (max-width: 768px) {
+  .movie-list {
+    padding: 12px;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    justify-content: space-between;
+  }
+
+  .mode-switch button {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .breadcrumb {
+    font-size: 12px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .folder-item {
+    padding: 12px;
+  }
+
+  .folder-item .name {
+    font-size: 14px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .pagination button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .page-input {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .page-input input {
+    width: 40px;
+    padding: 6px;
+  }
+}
 </style>

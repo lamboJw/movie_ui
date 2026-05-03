@@ -238,4 +238,44 @@ onMounted(async () => {
   padding: 60px;
   color: #888;
 }
+
+@media (max-width: 768px) {
+  .movie-detail {
+    padding: 12px;
+  }
+
+  .back-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .detail-content {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .poster img {
+    width: 100%;
+    max-width: 200px;
+    margin: 0 auto;
+    display: block;
+  }
+
+  .info h1 {
+    font-size: 22px;
+  }
+
+  .meta {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .video-player {
+    max-width: 100%;
+  }
+
+  .actor-list {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

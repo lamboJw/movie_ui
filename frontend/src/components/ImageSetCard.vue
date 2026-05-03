@@ -98,4 +98,27 @@ const formatDate = (dateStr) => {
   font-size: 11px;
   color: #666;
 }
+
+@media (max-width: 768px) {
+  .info {
+    padding: 8px;
+  }
+
+  .title {
+    font-size: 12px;
+  }
+
+  .folder {
+    font-size: 10px;
+  }
+
+  .date {
+    font-size: 10px;
+  }
+
+  .count {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}
 </style>

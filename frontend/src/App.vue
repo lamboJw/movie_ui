@@ -112,4 +112,26 @@ body {
 #app {
   min-height: 100vh;
 }
+
+@media (max-width: 768px) {
+  .header {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .header h1 {
+    font-size: 20px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .scan-btn, .random-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
 </style>

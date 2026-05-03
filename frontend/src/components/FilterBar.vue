@@ -407,4 +407,40 @@ onUnmounted(() => {
 .clear-btn:hover {
   background: #d63850;
 }
+
+@media (max-width: 768px) {
+  .filter-bar {
+    padding: 12px;
+  }
+
+  .search-input {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .filters {
+    gap: 8px;
+  }
+
+  .filter-input-text {
+    min-width: 80px;
+    font-size: 12px;
+    padding: 6px 24px 6px 8px;
+  }
+
+  .filter-input {
+    width: 60px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .rating-filter span {
+    font-size: 12px;
+  }
+
+  .clear-btn {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+}
 </style>

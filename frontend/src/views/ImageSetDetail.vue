@@ -363,4 +363,61 @@ onMounted(() => {
 .nav-btn.next {
   right: 0;
 }
+
+@media (max-width: 768px) {
+  .image-set-detail {
+    padding: 12px;
+  }
+
+  .header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .back-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .title {
+    font-size: 16px;
+    width: 100%;
+    order: -1;
+  }
+
+  .mode-toggle, .width-toggle {
+    gap: 5px;
+  }
+
+  .mode-toggle button, .width-toggle button {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .nav-btn {
+    padding: 15px 10px;
+    font-size: 18px;
+  }
+
+  .nav-btn.prev {
+    left: 0;
+  }
+
+  .nav-btn.next {
+    right: 0;
+  }
+
+  .thumbnails img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .counter {
+    font-size: 12px;
+  }
+
+  .waterfall-view {
+    padding: 0 10px;
+  }
+}
 </style>

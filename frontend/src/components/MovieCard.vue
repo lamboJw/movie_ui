@@ -97,4 +97,27 @@ const formatDate = (dateStr) => {
   font-size: 11px;
   color: #666;
 }
+
+@media (max-width: 768px) {
+  .info {
+    padding: 8px;
+  }
+
+  .title {
+    font-size: 12px;
+  }
+
+  .folder {
+    font-size: 10px;
+  }
+
+  .meta {
+    font-size: 10px;
+    gap: 6px;
+  }
+
+  .date {
+    font-size: 10px;
+  }
+}
 </style>
