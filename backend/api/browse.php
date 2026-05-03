@@ -12,7 +12,6 @@ $db = Database::getInstance()->getConnection();
 $path = $_GET['path'] ?? '';
 $path = trim($path);
 
-// 根目录映射
 $rootFolders = [
     'Media' => '/home/pi/disks/disk/.hidden/Media',
     'jav' => '/home/pi/disks/disk2/.hidden/jav'
@@ -25,16 +24,15 @@ if (empty($path)) {
             ['name' => 'jav', 'path' => 'jav']
         ],
         'files' => [],
+        'image_sets' => [],
         'current_path' => '',
         'can_go_back' => false
     ]);
     exit;
 }
 
-// 判断是否可返回：空 path 时为 false，其他都可以返回（包括 Media 和 jav）
 $canGoBack = !empty($path);
 
-// 转换 path 到实际目录
 $basePath = '';
 if ($path === 'Media') {
     $basePath = '/home/pi/disks/disk/.hidden/Media';
@@ -52,13 +50,13 @@ if (empty($basePath) || !is_dir($basePath)) {
     echo json_encode([
         'folders' => [],
         'files' => [],
+        'image_sets' => [],
         'current_path' => $path,
         'can_go_back' => $canGoBack
     ]);
     exit;
 }
 
-// 扫描目录获取文件夹
 $folders = [];
 $iterator = new DirectoryIterator($basePath);
 foreach ($iterator as $item) {
@@ -71,8 +69,6 @@ foreach ($iterator as $item) {
     }
 }
 
-// 从数据库获取该文件夹下的所有视频（只搜索当前层）
-// 使用 / 分隔符计数，在当前层只有一个路径部分（即没有额外的 /）
 $files = [];
 $videoPathPrefix = rtrim($basePath, '/');
 $escapedPrefix = str_replace(['%', '_'], ['\%', '\_'], $videoPathPrefix);
@@ -85,15 +81,48 @@ $stmt = $db->prepare("
 $stmt->execute([$escapedPrefix . '/%', $escapedPrefix . '/%/%']);
 $files = $stmt->fetchAll();
 
-// 处理 thumb 和 video_path 路径
 foreach ($files as &$file) {
     if (!empty($file['thumb'])) {
         $file['thumb'] = NfoParser::addDisksPrefix($file['thumb'], $file['video_path']);
     }
-    // 去掉 /home/pi 前缀
     if (strpos($file['video_path'], '/home/pi') === 0) {
         $file['video_path'] = '/disks' . substr($file['video_path'], 8);
     }
+}
+
+$imageSets = [];
+if (!empty($path)) {
+    $stmt = $db->prepare("
+        SELECT id, title, cover_image, image_count, folder_path
+        FROM image_sets
+        WHERE parent_path = ? OR parent_path = ?
+        ORDER BY date_added DESC
+    ");
+    $stmt->execute([$path, '/' . $path]);
+    $imageSets = $stmt->fetchAll();
+
+    foreach ($imageSets as &$set) {
+        $dirPath = $set['folder_path'];
+        $coverImage = $set['cover_image'];
+        $coverPath = $dirPath . '/' . $coverImage;
+        $set['cover_image'] = addDisksPrefix($coverPath, $dirPath);
+        
+        if (strpos($set['folder_path'], '/home/pi') === 0) {
+            $set['folder_path'] = '/disks' . substr($set['folder_path'], 8);
+        }
+    }
+}
+
+function addDisksPrefix($thumb, $videoPath = null) {
+    if (empty($thumb)) return '';
+    if (strpos($thumb, 'http') === 0) return $thumb;
+    
+    foreach ($videoFolders = $GLOBALS['config']['video_folders'] ?? [] as $folder) {
+        if (strpos($thumb, $folder) === 0) {
+            return '/disks' . substr($thumb, strlen($folder));
+        }
+    }
+    return '/disks' . $thumb;
 }
 
 usort($folders, fn($a, $b) => strcmp($a['name'], $b['name']));
@@ -102,6 +131,7 @@ usort($files, fn($a, $b) => strcmp($a['title'] ?? '', $b['title'] ?? ''));
 echo json_encode([
     'folders' => $folders,
     'files' => $files,
+    'image_sets' => $imageSets,
     'current_path' => $path,
     'can_go_back' => $canGoBack
 ]);

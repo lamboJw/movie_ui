@@ -5,68 +5,176 @@ require_once __DIR__ . '/NfoParser.php';
 class VideoScanner {
     private $db;
     private $config;
+    private $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 
     public function __construct($config) {
         $this->db = Database::getInstance()->getConnection();
         $this->config = $config;
     }
 
-    /**
-     * 扫描所有视频文件夹（本地模式）
-     */
     public function scanAll() {
         $results = [
-            'scanned' => 0,
-            'added' => 0,
-            'updated' => 0,
-            'errors' => []
+            'videos' => [
+                'scanned' => 0,
+                'added' => 0,
+                'updated' => 0,
+                'errors' => []
+            ],
+            'image_sets' => [
+                'scanned' => 0,
+                'added' => 0,
+                'updated' => 0,
+                'removed' => 0,
+                'errors' => []
+            ]
         ];
+
+        $existingImageSetPaths = $this->getExistingImageSetPaths();
+        $foundImageSetPaths = [];
 
         foreach ($this->config['video_folders'] as $folder) {
             try {
-                $this->scanFolderLocal($folder, $results);
+                $this->scanFolder($folder, $results, $foundImageSetPaths);
             } catch (Exception $e) {
-                $results['errors'][] = "扫描文件夹失败: $folder - " . $e->getMessage();
+                $results['videos']['errors'][] = "扫描文件夹失败: $folder - " . $e->getMessage();
             }
+        }
+
+        $toRemove = array_diff($existingImageSetPaths, $foundImageSetPaths);
+        if (!empty($toRemove)) {
+            $this->removeImageSets($toRemove, $results['image_sets']);
         }
 
         return $results;
     }
 
-    /**
-     * 本地文件系统扫描
-     */
-    private function scanFolderLocal($folder, &$results) {
+    private function getExistingImageSetPaths() {
+        $stmt = $this->db->query("SELECT folder_path FROM image_sets");
+        return array_column($stmt->fetchAll(), 'folder_path');
+    }
+
+    private function scanFolder($folder, &$results, &$foundImageSetPaths) {
         if (!is_dir($folder)) {
-            $results['errors'][] = "文件夹不存在: $folder";
             return;
         }
 
         $videoExts = array_map('strtolower', $this->config['video_extensions']);
 
         $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($folder, RecursiveDirectoryIterator::SKIP_DOTS)
+            new RecursiveDirectoryIterator($folder, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
         );
 
-        foreach ($iterator as $file) {
-            if ($file->isFile()) {
-                $ext = strtolower($file->getExtension());
+        foreach ($iterator as $item) {
+            $filename = $item->getFilename();
+            
+            if ($item->isFile()) {
+                $ext = strtolower($item->getExtension());
                 if (in_array($ext, $videoExts)) {
-                    $results['scanned']++;
-                    $videoPath = $file->getPathname();
+                    $results['videos']['scanned']++;
+                    $videoPath = $item->getPathname();
                     $nfoPath = $this->findNfoFileLocal($videoPath);
-
                     if ($nfoPath) {
                         $this->processVideoLocal($videoPath, $nfoPath, $results);
                     }
+                }
+            } elseif ($item->isDir() && $filename !== '.' && $filename !== '..' && strpos($filename, '.') !== 0) {
+                $dirPath = $item->getPathname();
+                if ($this->isImageSet($dirPath)) {
+                    $results['image_sets']['scanned']++;
+                    $foundImageSetPaths[] = $dirPath;
+                    $this->processImageSet($dirPath, $results);
                 }
             }
         }
     }
 
-    /**
-     * 本地查找NFO文件（优先选择有thumb的）
-     */
+    private function isImageSet($dirPath) {
+        $files = scandir($dirPath);
+        if (empty($files)) return false;
+
+        $imageFiles = [];
+        $hasVideo = false;
+        $videoExts = array_map('strtolower', $this->config['video_extensions'] ?? ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm']);
+
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..') continue;
+            if (strpos($file, '.') === 0) continue;
+
+            $fullPath = $dirPath . '/' . $file;
+            if (is_dir($fullPath)) continue;
+
+            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+            if (in_array($ext, $this->imageExts)) {
+                $imageFiles[] = $file;
+            } elseif (in_array($ext, $videoExts)) {
+                $hasVideo = true;
+            }
+        }
+
+        return !empty($imageFiles) && !$hasVideo;
+    }
+
+    private function processImageSet($dirPath, &$results) {
+        $images = $this->scanImages($dirPath);
+        if (empty($images)) return;
+
+        $title = basename($dirPath);
+        $coverImage = $images[0];
+        $parentPath = dirname($dirPath);
+        foreach ($this->config['video_folders'] as $folder) {
+            if (strpos($dirPath, $folder) === 0) {
+                $parentPath = substr($parentPath, strlen($folder));
+                break;
+            }
+        }
+
+        $stmt = $this->db->prepare("SELECT id FROM image_sets WHERE folder_path = ?");
+        $stmt->execute([$dirPath]);
+        $existing = $stmt->fetch();
+
+        $imagesJson = json_encode(array_values($images));
+
+        if ($existing) {
+            $stmt = $this->db->prepare("UPDATE image_sets SET title=?, cover_image=?, image_count=?, images=?, parent_path=?, updated_at=NOW() WHERE id=?");
+            $stmt->execute([$title, $coverImage, count($images), $imagesJson, $parentPath, $existing['id']]);
+            $results['image_sets']['updated']++;
+        } else {
+            $stmt = $this->db->prepare("INSERT INTO image_sets (folder_path, title, cover_image, image_count, images, parent_path, date_added) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+            $stmt->execute([$dirPath, $title, $coverImage, count($images), $imagesJson, $parentPath]);
+            $results['image_sets']['added']++;
+        }
+    }
+
+    private function scanImages($dirPath) {
+        $images = [];
+        $files = scandir($dirPath);
+
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..') continue;
+            if (strpos($file, '.') === 0) continue;
+
+            $fullPath = $dirPath . '/' . $file;
+            if (is_dir($fullPath)) continue;
+
+            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+            if (in_array($ext, $this->imageExts)) {
+                $images[] = $file;
+            }
+        }
+
+        sort($images);
+        return $images;
+    }
+
+    private function removeImageSets($paths, &$results) {
+        foreach ($paths as $path) {
+            $stmt = $this->db->prepare("DELETE FROM image_sets WHERE folder_path = ?");
+            $stmt->execute([$path]);
+            $results['removed']++;
+        }
+    }
+
     private function findNfoFileLocal($videoPath) {
         $dir = dirname($videoPath);
         $filename = pathinfo($videoPath, PATHINFO_FILENAME);
@@ -199,10 +307,10 @@ class VideoScanner {
 
         if ($existing) {
             $this->updateMovie($existing['id'], $data);
-            $results['updated']++;
+            $results['videos']['updated']++;
         } else {
             $this->insertMovie($data);
-            $results['added']++;
+            $results['videos']['added']++;
         }
     }
 

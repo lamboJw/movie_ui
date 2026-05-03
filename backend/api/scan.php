@@ -8,22 +8,22 @@ require_once __DIR__ . '/../includes/VideoScanner.php';
 $config = require __DIR__ . '/../config/config.php';
 
 try {
-    // 异步执行扫描
-    $scanScript = __DIR__ . '/../includes/ScanWorker.php';
-    $logFile = '/tmp/movie_scan.log';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8080';
+    $scheme = (!empty($_SERVER['HTTPS']) || ($_SERVER['REQUEST_SCHEME'] ?? '') === 'https') ? 'https' : 'http';
+    $baseUrl = $scheme . '://' . $host;
 
-    // fork 后台进程执行扫描
-    $cmd = sprintf(
-        'php %s %s > %s 2>&1 &',
-        escapeshellarg($scanScript),
-        escapeshellarg(json_encode($config)),
-        escapeshellarg($logFile)
+$cmd = sprintf(
+        'curl -s -o /dev/null -X POST %s/api/scan_cli > /dev/null 2>&1 &',
+        escapeshellarg($baseUrl)
     );
     exec($cmd);
 
     echo json_encode([
         'success' => true,
-        'message' => '扫描已在后台开始'
+        'message' => '扫描已在后台开始',
+        'data' => [
+            'cmd' => $cmd
+        ]
     ]);
 } catch (Exception $e) {
     http_response_code(500);

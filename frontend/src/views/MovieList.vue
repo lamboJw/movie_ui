@@ -2,15 +2,20 @@
   <div class="movie-list">
     <div class="header">
       <FilterBar :filterOptions="filterOptions" @search="handleSearch" @filter="handleFilter" />
-      <div class="mode-switch">
-        <button 
-          :class="{ active: viewMode === 'folder' }" 
-          @click="switchMode('folder')"
-        >📁 文件夹</button>
-        <button 
-          :class="{ active: viewMode === 'list' }" 
-          @click="switchMode('list')"
-        >📋 列表</button>
+      <div class="header-actions">
+        <button class="scan-btn" @click="triggerScan" :disabled="scanning">
+          {{ scanning ? '扫描中...' : '🔄 扫描' }}
+        </button>
+        <div class="mode-switch">
+          <button
+            :class="{ active: viewMode === 'folder' }"
+            @click="switchMode('folder')"
+          >📁 文件夹</button>
+          <button
+            :class="{ active: viewMode === 'list' }"
+            @click="switchMode('list')"
+          >📋 列表</button>
+        </div>
       </div>
     </div>
 
@@ -18,8 +23,8 @@
     <div v-if="viewMode === 'folder'" class="folder-view">
       <!-- 面包屑导航 -->
       <div class="breadcrumb" v-if="currentPath">
-        <span 
-          class="crumb" 
+        <span
+          class="crumb"
           :class="{ disabled: !canGoBack }"
           @click="goBack"
         >← 返回</span>
@@ -30,8 +35,8 @@
       <div v-else>
         <!-- 文件夹列表 -->
         <div v-if="folders.length" class="folder-list">
-          <div 
-            v-for="folder in folders" 
+          <div
+            v-for="folder in folders"
             :key="folder.path"
             class="folder-item"
             @click="enterFolder(folder.path)"
@@ -51,7 +56,17 @@
           />
         </div>
 
-        <div v-if="!folders.length && !files.length" class="empty">
+        <!-- 图片套图列表 -->
+        <div v-if="imageSets.length" class="grid">
+          <ImageSetCard
+            v-for="set in imageSets"
+            :key="set.id"
+            :imageSet="set"
+            @click="openImageSet(set)"
+          />
+        </div>
+
+        <div v-if="!folders.length && !files.length && !imageSets.length" class="empty">
           <p>该目录为空</p>
         </div>
       </div>
@@ -61,8 +76,8 @@
     <div v-else class="list-view">
       <!-- 面包屑导航 -->
       <div class="breadcrumb" v-if="currentPath">
-        <span 
-          class="crumb" 
+        <span
+          class="crumb"
           :class="{ disabled: !canGoBack }"
           @click="goBack"
         >← 返回</span>
@@ -84,7 +99,11 @@
         </div>
         <div class="pagination">
           <button :disabled="page <= 1" @click="changePage(page - 1)">上一页</button>
-          <span>{{ page }} / {{ totalPages }}</span>
+          <div class="page-input">
+            <input type="number" v-model="jumpPage" min="1" :max="totalPages" @keyup.enter="jumpToPage" />
+            <span> / {{ totalPages }}</span>
+            <button @click="jumpToPage">跳转</button>
+          </div>
           <button :disabled="page >= totalPages" @click="changePage(page + 1)">下一页</button>
         </div>
       </div>
@@ -93,9 +112,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import MovieCard from '../components/MovieCard.vue'
+import ImageSetCard from '../components/ImageSetCard.vue'
 import FilterBar from '../components/FilterBar.vue'
 import { movieApi } from '../api/movieApi'
 
@@ -104,22 +124,51 @@ const route = useRoute()
 
 const movies = ref([])
 const loading = ref(true)
+const scanning = ref(false)
 const page = ref(1)
 const totalPages = ref(1)
 const filters = ref({})
+const jumpPage = ref(1)
 
-// 文件夹模式
 const viewMode = ref(localStorage.getItem('viewMode') || 'folder')
 const currentPath = ref('')
 const canGoBack = ref(false)
 const folders = ref([])
 const files = ref([])
+const imageSets = ref([])
 
 const filterOptions = ref({
   years: [],
   genres: [],
   directors: [],
   actors: []
+})
+
+const loadByRoute = () => {
+  const mode = route.query.mode
+  const path = route.query.path || ''
+  
+  if (mode === 'folder') {
+    viewMode.value = 'folder'
+    fetchBrowse(path)
+  } else if (mode === 'list') {
+    viewMode.value = 'list'
+    page.value = parseInt(route.query.page) || 1
+    fetchMovies(path)
+  } else {
+    if (viewMode.value === 'folder') {
+      fetchBrowse(path)
+    } else {
+      fetchMovies(path)
+    }
+  }
+}
+
+watch(() => route.query, loadByRoute)
+
+onMounted(() => {
+  loadByRoute()
+  fetchFilterOptions('')
 })
 
 const fetchFilterOptions = async (folder = '') => {
@@ -136,11 +185,11 @@ const switchMode = (mode) => {
   localStorage.setItem('viewMode', mode)
   sessionStorage.setItem('lastViewMode', mode)
   if (mode === 'folder') {
-    const savedPath = sessionStorage.getItem('lastBrowsePath')
-    fetchBrowse(savedPath || '')
+    router.replace({ query: { mode: 'folder', path: currentPath.value } })
+    fetchBrowse(currentPath.value)
   } else {
-    const folder = currentPath.value
-    fetchMovies(folder)
+    router.replace({ query: { mode: 'list', path: currentPath.value } })
+    fetchMovies(currentPath.value)
   }
 }
 
@@ -153,9 +202,8 @@ const fetchBrowse = async (path = '') => {
     canGoBack.value = data.can_go_back
     folders.value = data.folders || []
     files.value = data.files || []
-    if (data.current_path !== undefined) {
-      sessionStorage.setItem('lastBrowsePath', data.current_path)
-    }
+    imageSets.value = data.image_sets || []
+    sessionStorage.setItem('lastBrowsePath', data.current_path)
     fetchFilterOptions(data.current_path || '')
   } catch (e) {
     console.error('获取目录失败', e)
@@ -165,7 +213,7 @@ const fetchBrowse = async (path = '') => {
 }
 
 const enterFolder = (path) => {
-  fetchBrowse(path)
+  router.push({ query: { mode: 'folder', path } })
 }
 
 const goBack = () => {
@@ -173,23 +221,23 @@ const goBack = () => {
   const parts = currentPath.value.split('/')
   parts.pop()
   const parentPath = parts.join('/')
-  if (viewMode.value === 'folder') {
-    fetchBrowse(parentPath)
-  } else {
-    fetchMovies(parentPath)
-  }
-  sessionStorage.setItem('lastBrowsePath', parentPath)
+  router.push({ query: { mode: viewMode.value, path: parentPath } })
 }
 
 const openDetail = (file) => {
   if (file.id) {
-    // 保存当前路径，用于返回
     sessionStorage.setItem('lastBrowsePath', currentPath.value)
     sessionStorage.setItem('lastViewMode', viewMode.value)
     router.push(`/movie/${file.id}`)
   } else {
     alert('该视频尚未入库，请先扫描')
   }
+}
+
+const openImageSet = (imageSet) => {
+  sessionStorage.setItem('lastBrowsePath', currentPath.value)
+  sessionStorage.setItem('lastViewMode', viewMode.value)
+  router.push(`/image_set/${imageSet.id}`)
 }
 
 const fetchMovies = async (folder = '') => {
@@ -215,45 +263,46 @@ const fetchMovies = async (folder = '') => {
 
 const changePage = (newPage) => {
   page.value = newPage
-  fetchMovies(currentPath.value)
+  router.push({ query: { mode: 'list', path: currentPath.value, page: newPage } })
+}
+
+const jumpToPage = () => {
+  const p = parseInt(jumpPage.value)
+  if (p >= 1 && p <= totalPages.value) {
+    changePage(p)
+  } else {
+    alert(`请输入1-${totalPages.value}之间的页码`)
+  }
 }
 
 const handleSearch = (search) => {
   filters.value.search = search
   page.value = 1
-  fetchMovies(currentPath.value)
+  router.replace({ query: { mode: 'list', path: currentPath.value, page: 1, search } })
 }
 
 const handleFilter = (newFilters) => {
   filters.value = { ...filters.value, ...newFilters }
   page.value = 1
-  fetchMovies(currentPath.value)
+  router.replace({ query: { mode: 'list', path: currentPath.value, page: 1, ...filters.value } })
 }
 
 const triggerScan = async () => {
-  if (confirm('确定要扫描视频文件夹吗？这可能需要几分钟时间。')) {
-    loading.value = true
+  if (scanning.value) return
+  scanning.value = true
+  try {
     await movieApi.scan()
-    alert('扫描完成！')
-    fetchMovies(currentPath.value)
+  } catch (e) {
+    console.error('扫描失败', e)
+  } finally {
+    scanning.value = false
+    setTimeout(() => {
+      loadByRoute()
+    }, 2000)
   }
 }
 
 onMounted(() => {
-  // 检查 url 参数
-  if (route.query.mode === 'folder') {
-    viewMode.value = 'folder'
-    const path = route.query.path || ''
-    fetchBrowse(path)
-  } else if (route.query.mode === 'list') {
-    viewMode.value = 'list'
-    const path = route.query.path || ''
-    fetchMovies(path)
-  } else if (viewMode.value === 'folder') {
-    fetchBrowse()
-  } else {
-    fetchMovies()
-  }
   fetchFilterOptions('')
 })
 </script>
@@ -268,6 +317,27 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.header-actions .scan-btn {
+  padding: 8px 16px;
+  background: #e94560;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.header-actions .scan-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .mode-switch {
@@ -375,6 +445,36 @@ onMounted(() => {
   border: 1px solid #333;
   border-radius: 6px;
   cursor: pointer;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-input input {
+  width: 50px;
+  padding: 8px;
+  background: #1a1a2e;
+  color: white;
+  border: 1px solid #333;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.page-input input:focus {
+  outline: none;
+  border-color: #e94560;
+}
+
+.page-input button {
+  padding: 8px 12px;
 }
 
 .pagination button:disabled {

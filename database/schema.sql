@@ -59,3 +59,19 @@ CREATE TABLE IF NOT EXISTS movie_actors (
     FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
     FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 图片套图表
+CREATE TABLE IF NOT EXISTS image_sets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    folder_path VARCHAR(2000) UNIQUE NOT NULL,
+    title VARCHAR(500),
+    cover_image VARCHAR(1000),
+    image_count INT DEFAULT 0,
+    images JSON,
+    parent_path VARCHAR(2000),
+    date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_folder_path (folder_path),
+    INDEX idx_parent_path (parent_path)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

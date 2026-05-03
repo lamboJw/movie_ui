@@ -1,20 +1,16 @@
 <?php
-// 后台扫描工作器
+// CLI 扫描脚本 - 通过 curl 异步调用
+header('Content-Type: text/plain; charset=utf-8');
 
-$config = json_decode($argv[1] ?? '{}', true);
-
-if (empty($config)) {
-    exit(1);
-}
-
-require_once __DIR__ . '/Database.php';
-require_once __DIR__ . '/VideoScanner.php';
+require_once __DIR__ . '/../includes/VideoScanner.php';
+$config = require __DIR__ . '/../config/config.php';
+$logFile = '/tmp/movie_scan.log';
 
 try {
+    file_put_contents($logFile, sprintf("[%s] 开始扫描...\n", date('Y-m-d H:i:s')), FILE_APPEND);
     $scanner = new VideoScanner($config);
     $results = $scanner->scanAll();
 
-    $logFile = '/tmp/movie_scan.log';
     $log = sprintf(
         "[%s] 扫描完成:\n 视频: scanned=%d, added=%d, updated=%d\n 图片套图: scanned=%d, added=%d, updated=%d, removed=%d\n",
         date('Y-m-d H:i:s'),
@@ -28,7 +24,10 @@ try {
     );
     file_put_contents($logFile, $log, FILE_APPEND);
 
-} catch (Exception $e) {
-    $logFile = '/tmp/movie_scan.log';
-    file_put_contents($logFile, date('Y-m-d H:i:s') . " 扫描失败: " . $e->getMessage() . "\n", FILE_APPEND);
+    echo $log;
+} catch (Throwable $e) {
+    $log = date('Y-m-d H:i:s') . " 扫描失败: " . $e->getMessage() . "\n". $e->getTraceAsString() . "\n";
+    echo $log;
+    file_put_contents($logFile, $log, FILE_APPEND);
+    echo $log;
 }
