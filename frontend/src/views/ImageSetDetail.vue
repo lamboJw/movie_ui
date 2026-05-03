@@ -7,7 +7,7 @@
         <button :class="{ active: viewMode === 'slider' }" @click="viewMode = 'slider'">轮播</button>
         <button :class="{ active: viewMode === 'waterfall' }" @click="viewMode = 'waterfall'">流式</button>
       </div>
-      <div v-if="viewMode === 'waterfall'" class="width-toggle">
+      <div class="width-toggle">
         <button :class="{ active: imageWidth === 50 }" @click="imageWidth = 50">50%</button>
         <button :class="{ active: imageWidth === 75 }" @click="imageWidth = 75">75%</button>
         <button :class="{ active: imageWidth === 100 }" @click="imageWidth = 100">100%</button>
@@ -23,7 +23,7 @@
     <div v-else-if="viewMode === 'slider'" class="slider-view">
       <div class="main-image">
         <button class="nav-btn prev" @click="prevImage" :disabled="currentIndex === 0">←</button>
-        <img :src="currentImage" @error="handleImageError" @load="onImageLoad" />
+        <img :src="currentImage" :style="{ maxWidth: imageWidth + '%' }" @error="handleImageError" @load="onImageLoad" />
         <button class="nav-btn next" @click="nextImage" :disabled="currentIndex >= imageSet.images.length - 1">→</button>
       </div>
       <div class="thumbnails">
@@ -45,7 +45,6 @@
           v-for="(img, idx) in displayedImages"
           :key="idx"
           class="waterfall-item"
-          @click="viewMode = 'slider'; currentIndex = idx"
         >
           <img :src="img" @error="handleImageError" loading="lazy" />
         </div>
@@ -115,15 +114,15 @@ const onImageLoad = (e) => {
 const loadMoreImages = () => {
   const allImages = imageSet.value.images || []
   const currentCount = displayedImages.value.length
-  
+
   if (currentCount >= allImages.length) {
     noMore.value = true
     return
   }
-  
+
   const nextBatch = allImages.slice(currentCount, currentCount + pageSize)
   displayedImages.value = [...displayedImages.value, ...nextBatch]
-  
+
   if (displayedImages.value.length >= allImages.length) {
     noMore.value = true
   }
@@ -132,11 +131,11 @@ const loadMoreImages = () => {
 const onScroll = (e) => {
   const el = waterfallRef.value
   if (!el) return
-  
+
   const scrollTop = el.scrollTop
   const scrollHeight = el.scrollHeight
   const clientHeight = el.clientHeight
-  
+
   if (scrollTop + clientHeight >= scrollHeight - 200) {
     if (!loadingMore.value && !noMore.value) {
       loadingMore.value = true
@@ -342,7 +341,6 @@ onMounted(() => {
   margin-bottom: 15px;
   border-radius: 8px;
   overflow: hidden;
-  cursor: pointer;
 }
 
 .waterfall-item img {
@@ -350,11 +348,6 @@ onMounted(() => {
   max-width: 100%;
   margin: 0 auto;
   display: block;
-  transition: transform 0.2s;
-}
-
-.waterfall-item:hover img {
-  transform: scale(1.05);
 }
 
 .loading-more, .no-more {

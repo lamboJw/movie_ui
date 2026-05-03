@@ -3,9 +3,6 @@
     <div class="header">
       <FilterBar :filterOptions="filterOptions" @search="handleSearch" @filter="handleFilter" />
       <div class="header-actions">
-        <button class="scan-btn" @click="triggerScan" :disabled="scanning">
-          {{ scanning ? '扫描中...' : '🔄 扫描' }}
-        </button>
         <div class="mode-switch">
           <button
             :class="{ active: viewMode === 'folder' }"

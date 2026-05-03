@@ -11,25 +11,101 @@
     </div>
 
     <div class="filters">
-      <select v-model="filters.year" @change="emitFilter" class="filter-select">
-        <option value="">年份</option>
-        <option v-for="year in filterOptions.years" :key="year" :value="year">{{ year }}</option>
-      </select>
+      <div class="filter-select-wrapper">
+        <div class="input-with-clear">
+          <input
+            v-model="filterTexts.year"
+            @input="onFilterInput('year')"
+            @focus="showDropdown('year')"
+            @keydown.enter="selectFirst('year')"
+            type="text"
+            placeholder="年份"
+            class="filter-input-text"
+          >
+          <button v-if="filterTexts.year" class="clear-input" @click="clearFilter('year')">×</button>
+        </div>
+        <div v-if="openDropdown === 'year'" class="filter-dropdown">
+          <div
+            v-for="year in filteredYears"
+            :key="year"
+            class="filter-option"
+            @click="selectOption('year', year)"
+          >{{ year }}</div>
+          <div v-if="!filteredYears.length" class="filter-empty">无匹配</div>
+        </div>
+      </div>
 
-      <select v-model="filters.genre" @change="emitFilter" class="filter-select">
-        <option value="">类型</option>
-        <option v-for="genre in filterOptions.genres" :key="genre" :value="genre">{{ genre }}</option>
-      </select>
+      <div class="filter-select-wrapper">
+        <div class="input-with-clear">
+          <input
+            v-model="filterTexts.genre"
+            @input="onFilterInput('genre')"
+            @focus="showDropdown('genre')"
+            @keydown.enter="selectFirst('genre')"
+            type="text"
+            placeholder="类型"
+            class="filter-input-text"
+          >
+          <button v-if="filterTexts.genre" class="clear-input" @click="clearFilter('genre')">×</button>
+        </div>
+        <div v-if="openDropdown === 'genre'" class="filter-dropdown">
+          <div
+            v-for="genre in filteredGenres"
+            :key="genre"
+            class="filter-option"
+            @click="selectOption('genre', genre)"
+          >{{ genre }}</div>
+          <div v-if="!filteredGenres.length" class="filter-empty">无匹配</div>
+        </div>
+      </div>
 
-      <select v-model="filters.director" @change="emitFilter" class="filter-select">
-        <option value="">导演</option>
-        <option v-for="director in filterOptions.directors" :key="director" :value="director">{{ director }}</option>
-      </select>
+      <div class="filter-select-wrapper">
+        <div class="input-with-clear">
+          <input
+            v-model="filterTexts.director"
+            @input="onFilterInput('director')"
+            @focus="showDropdown('director')"
+            @keydown.enter="selectFirst('director')"
+            type="text"
+            placeholder="导演"
+            class="filter-input-text"
+          >
+          <button v-if="filterTexts.director" class="clear-input" @click="clearFilter('director')">×</button>
+        </div>
+        <div v-if="openDropdown === 'director'" class="filter-dropdown">
+          <div
+            v-for="director in filteredDirectors"
+            :key="director"
+            class="filter-option"
+            @click="selectOption('director', director)"
+          >{{ director }}</div>
+          <div v-if="!filteredDirectors.length" class="filter-empty">无匹配</div>
+        </div>
+      </div>
 
-      <select v-model="filters.actor" @change="emitFilter" class="filter-select">
-        <option value="">演员</option>
-        <option v-for="actor in filterOptions.actors" :key="actor" :value="actor">{{ actor }}</option>
-      </select>
+      <div class="filter-select-wrapper">
+        <div class="input-with-clear">
+          <input
+            v-model="filterTexts.actor"
+            @input="onFilterInput('actor')"
+            @focus="showDropdown('actor')"
+            @keydown.enter="selectFirst('actor')"
+            type="text"
+            placeholder="演员"
+            class="filter-input-text"
+          >
+          <button v-if="filterTexts.actor" class="clear-input" @click="clearFilter('actor')">×</button>
+        </div>
+        <div v-if="openDropdown === 'actor'" class="filter-dropdown">
+          <div
+            v-for="actor in filteredActors"
+            :key="actor"
+            class="filter-option"
+            @click="selectOption('actor', actor)"
+          >{{ actor }}</div>
+          <div v-if="!filteredActors.length" class="filter-empty">无匹配</div>
+        </div>
+      </div>
 
       <div class="rating-filter">
         <input v-model="filters.min_rating" type="number" step="0.1" min="0" max="10" placeholder="最低分" class="filter-input" @change="emitFilter">
@@ -43,7 +119,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   filterOptions: {
@@ -68,6 +144,74 @@ const filters = ref({
   min_rating: '',
   max_rating: ''
 })
+
+const filterTexts = ref({
+  year: '',
+  genre: '',
+  director: '',
+  actor: ''
+})
+
+const openDropdown = ref('')
+
+const filteredYears = computed(() => {
+  const text = filterTexts.value.year
+  if (!text) return props.filterOptions.years || []
+  return (props.filterOptions.years || []).filter(y => String(y).includes(text))
+})
+
+const filteredGenres = computed(() => {
+  const text = filterTexts.value.genre
+  if (!text) return props.filterOptions.genres || []
+  return (props.filterOptions.genres || []).filter(g => g.toLowerCase().includes(text.toLowerCase()))
+})
+
+const filteredDirectors = computed(() => {
+  const text = filterTexts.value.director
+  if (!text) return props.filterOptions.directors || []
+  return (props.filterOptions.directors || []).filter(d => d.toLowerCase().includes(text.toLowerCase()))
+})
+
+const filteredActors = computed(() => {
+  const text = filterTexts.value.actor
+  if (!text) return props.filterOptions.actors || []
+  return (props.filterOptions.actors || []).filter(a => a.toLowerCase().includes(text.toLowerCase()))
+})
+
+const onFilterInput = (field) => {
+  openDropdown.value = field
+}
+
+const showDropdown = (field) => {
+  openDropdown.value = field
+}
+
+const selectOption = (field, value) => {
+  filters.value[field] = value
+  filterTexts.value[field] = value
+  openDropdown.value = ''
+  emitFilter()
+}
+
+const selectFirst = (field) => {
+  const map = {
+    year: filteredYears.value,
+    genre: filteredGenres.value,
+    director: filteredDirectors.value,
+    actor: filteredActors.value
+  }
+  const list = map[field]
+  if (list && list.length > 0) {
+    selectOption(field, list[0])
+  }
+}
+
+const clearFilter = (field) => {
+  filters.value[field] = ''
+  filterTexts.value[field] = ''
+  openDropdown.value = ''
+  emitFilter()
+}
 
 const hasFilters = computed(() => {
   return filters.value.year || filters.value.genre || filters.value.director || 
@@ -95,8 +239,28 @@ const clearFilters = () => {
     min_rating: '',
     max_rating: ''
   }
+  filterTexts.value = {
+    year: '',
+    genre: '',
+    director: '',
+    actor: ''
+  }
   emitFilter()
 }
+
+const closeDropdown = (e) => {
+  if (!e.target.closest('.filter-select-wrapper')) {
+    openDropdown.value = ''
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', closeDropdown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeDropdown)
+})
 </script>
 
 <style scoped>
@@ -133,20 +297,76 @@ const clearFilters = () => {
   align-items: center;
 }
 
-.filter-select {
-  padding: 8px 12px;
+.filter-select-wrapper {
+  position: relative;
+}
+
+.input-with-clear {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.filter-input-text {
+  padding: 8px 30px 8px 12px;
   background: #16213e;
   border: 1px solid #333;
   border-radius: 6px;
   color: white;
   font-size: 13px;
   min-width: 100px;
-  cursor: pointer;
 }
 
-.filter-select:focus {
+.clear-input {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.clear-input:hover {
+  color: #e94560;
+}
+
+.filter-input-text:focus {
   outline: none;
   border-color: #e94560;
+}
+
+.filter-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  z-index: 100;
+}
+
+.filter-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  color: #ccc;
+}
+
+.filter-option:hover {
+  background: #e94560;
+  color: white;
+}
+
+.filter-empty {
+  padding: 8px 12px;
+  color: #666;
+  font-size: 12px;
 }
 
 .filter-input {
