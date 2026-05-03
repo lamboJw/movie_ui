@@ -1,6 +1,6 @@
 <template>
   <div class="movie-detail" v-if="movie">
-    <button @click="$router.back()" class="back-btn">← 返回</button>
+    <button @click="goBack" class="back-btn">← 返回</button>
 
     <div class="detail-content">
       <div class="poster">
@@ -11,6 +11,17 @@
         <h1>{{ movie.title }}</h1>
         <p v-if="movie.original_title" class="original-title">{{ movie.original_title }}</p>
         <p v-if="movie.folder" class="folder">📁 {{ movie.folder }}</p>
+
+        <!-- 播放器 -->
+        <div v-if="movie.video_path" class="player-container">
+          <video 
+            class="video-player" 
+            controls 
+            :src="videoUrl"
+          >
+            您的浏览器不支持 video 标签
+          </video>
+        </div>
 
         <div class="meta">
           <span v-if="movie.year">{{ movie.year }}</span>
@@ -47,12 +58,30 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { movieApi } from '../api/movieApi'
 
 const route = useRoute()
+const router = useRouter()
 const movie = ref(null)
+
+// 视频路径
+const videoUrl = computed(() => {
+  return movie.value?.video_path || null
+})
+
+const goBack = () => {
+  // 恢复之前浏览的路径和模式
+  const lastPath = sessionStorage.getItem('lastBrowsePath') || ''
+  const lastMode = sessionStorage.getItem('lastViewMode') || 'list'
+  
+  if (lastMode === 'folder') {
+    router.push({ name: 'home', query: { mode: 'folder', path: lastPath } })
+  } else {
+    router.push('/')
+  }
+}
 
 onMounted(async () => {
   try {
@@ -95,6 +124,16 @@ onMounted(async () => {
 
 .info {
   flex: 1;
+}
+
+.player-container {
+  margin: 20px 0;
+}
+
+.video-player {
+  width: 100%;
+  max-width: 800px;
+  border-radius: 8px;
 }
 
 .info h1 {

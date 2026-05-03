@@ -21,5 +21,10 @@ export const movieApi = {
   // 触发扫描
   scan() {
     return axios.get(`${API_BASE}/scan`)
+  },
+
+  // 浏览文件夹
+  browse(path = '') {
+    return axios.get(`${API_BASE}/browse`, { params: { path } })
   }
 }

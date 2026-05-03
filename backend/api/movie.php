@@ -65,6 +65,10 @@ $movie['genres'] = array_column($stmt->fetchAll(), 'name');
 
 // 补充/disks/前缀
 $movie['thumb'] = NfoParser::addDisksPrefix($movie['thumb'], $movie['video_path'] ?? null);
+// 转换 video_path
+if (strpos($movie['video_path'] ?? '', '/home/pi') === 0) {
+    $movie['video_path'] = substr($movie['video_path'], 8);
+}
 // 提取文件夹层级
 $movie['folder'] = extractFolder($movie['video_path'] ?? '', $config['video_folders'] ?? []);
 
