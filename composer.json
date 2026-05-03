@@ -1,0 +1,13 @@
+{
+    "name": "movie-ui/backend",
+    "description": "Movie library management system backend (SSH command mode)",
+    "require": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+        "classmap": [
+            "backend/includes/",
+            "backend/config/"
+        ]
+    }
+}
