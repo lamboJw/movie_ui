@@ -142,62 +142,50 @@ class VideoScanner {
 
         $filename = pathinfo($videoPath, PATHINFO_FILENAME);
         $videoDir = dirname($videoPath);
+        $isMediaDir = strpos($videoDir, '/disk1/.hidden/Media') !== false;
 
-        // 如果没有thumb，搜索图片
+        // thumb 搜索优先级
+        $thumbSearch = $isMediaDir ? [
+            $filename . '-poster.jpg',
+            'poster.jpg',
+            $filename . '.jpg',
+            $filename . '.png'
+        ] : [$filename . '.png'];
+
+        // fanart 搜索优先级
+        $fanartSearch = $isMediaDir ? [
+            $filename . '-poster.jpg',
+            'poster.jpg',
+            $filename . '.jpg',
+            $filename . '.png'
+        ] : [$filename . '.jpg'];
+
+        // 搜索thumb
         if (empty($movieData['thumb'])) {
-            // 检查是否在 /disk1/.hidden/Media 目录
-            if (strpos($videoDir, '/disk1/.hidden/Media') !== false) {
-                // 搜索 {文件名}-poster.jpg
-                $thumbCandidate = $videoDir . '/' . $filename . '-poster.jpg';
-                if (!file_exists($thumbCandidate)) {
-                    // 再搜索 poster.jpg
-                    $thumbCandidate = $videoDir . '/poster.jpg';
-                }
-                if (file_exists($thumbCandidate)) {
-                    $movieData['thumb'] = $thumbCandidate;
-                } else {
-                    // 兜底: 优先 {文件名}.jpg，再 {文件名}.png
-                    $jpgCandidate = $videoDir . '/' . $filename . '.jpg';
-                    if (file_exists($jpgCandidate)) {
-                        $movieData['thumb'] = $jpgCandidate;
-                    } else {
-                        $movieData['thumb'] = $filename . '.png';
-                    }
-                }
-            } else {
-                $movieData['thumb'] = $filename . '.png';
-            }
+            $movieData['thumb'] = $this->findImage($videoDir, $thumbSearch) ?? $filename . '.png';
         }
 
-        // 如果没有fanart，搜索图片
+        // 搜索fanart
         if (empty($movieData['fanart'])) {
-            // 检查是否在 /disk1/.hidden/Media 目录
-            if (strpos($videoDir, '/disk1/.hidden/Media') !== false) {
-                // 搜索 {文件名}-poster.jpg
-                $fanartCandidate = $videoDir . '/' . $filename . '-poster.jpg';
-                if (!file_exists($fanartCandidate)) {
-                    // 再搜索 poster.jpg
-                    $fanartCandidate = $videoDir . '/poster.jpg';
-                }
-                if (file_exists($fanartCandidate)) {
-                    $movieData['fanart'] = $fanartCandidate;
-                } else {
-                    // 兜底: 优先 {文件名}.jpg，再 {文件名}.png
-                    $jpgCandidate = $videoDir . '/' . $filename . '.jpg';
-                    if (file_exists($jpgCandidate)) {
-                        $movieData['fanart'] = $jpgCandidate;
-                    } else {
-                        $movieData['fanart'] = $filename . '.png';
-                    }
-                }
-            } else {
-                $movieData['fanart'] = $filename . '.jpg';
-            }
+            $movieData['fanart'] = $this->findImage($videoDir, $fanartSearch) ?? $filename . '.jpg';
         }
 
         $movieData['video_path'] = $videoPath;
 
         $this->saveMovie($movieData, $results);
+    }
+
+    /**
+     * 在目录中搜索图片文件
+     */
+    private function findImage($dir, $candidates) {
+        foreach ($candidates as $candidate) {
+            $path = $dir . '/' . $candidate;
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+        return null;
     }
 
     /**
