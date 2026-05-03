@@ -184,6 +184,7 @@ class NfoParser {
             if (strpos($videoPath, '/home/pi') === 0) {
                 $videoPath = substr($videoPath, 8);
             }
+            $videoPath = pathinfo($videoPath, PATHINFO_EXTENSION) ? dirname($videoPath) : $videoPath;
             return $videoPath . '/' . ltrim($thumb, '/');
         }
         return $thumb;
