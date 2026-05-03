@@ -7,6 +7,11 @@
         <button :class="{ active: viewMode === 'slider' }" @click="viewMode = 'slider'">轮播</button>
         <button :class="{ active: viewMode === 'waterfall' }" @click="viewMode = 'waterfall'">流式</button>
       </div>
+      <div v-if="viewMode === 'waterfall'" class="width-toggle">
+        <button :class="{ active: imageWidth === 50 }" @click="imageWidth = 50">50%</button>
+        <button :class="{ active: imageWidth === 75 }" @click="imageWidth = 75">75%</button>
+        <button :class="{ active: imageWidth === 100 }" @click="imageWidth = 100">100%</button>
+      </div>
     </div>
 
     <div v-if="loading" class="loading">加载中...</div>
@@ -33,18 +38,20 @@
       <div class="counter">{{ currentIndex + 1 }} / {{ imageSet.images.length }}</div>
     </div>
 
-    <!-- 流式模式 -->
-    <div v-else class="waterfall-view">
+    <!-- 流式模式 - 懒加载 -->
+    <div v-else ref="waterfallRef" class="waterfall-view" @scroll="onScroll">
       <div class="waterfall-grid">
         <div
-          v-for="(img, idx) in imageSet.images"
+          v-for="(img, idx) in displayedImages"
           :key="idx"
           class="waterfall-item"
           @click="viewMode = 'slider'; currentIndex = idx"
         >
-          <img :src="img" @error="handleImageError" />
+          <img :src="img" @error="handleImageError" loading="lazy" />
         </div>
       </div>
+      <div v-if="loadingMore" class="loading-more">加载中...</div>
+      <div v-if="noMore" class="no-more">没有更多了</div>
     </div>
   </div>
 </template>
@@ -60,6 +67,13 @@ const imageSet = ref({})
 const loading = ref(true)
 const currentIndex = ref(0)
 const viewMode = ref('slider')
+const imageWidth = ref(100)
+
+const waterfallRef = ref(null)
+const displayedImages = ref([])
+const loadingMore = ref(false)
+const noMore = ref(false)
+const pageSize = 20
 
 const currentImage = computed(() => imageSet.value.images?.[currentIndex.value] || '')
 
@@ -98,11 +112,51 @@ const handleImageError = (e) => {
 const onImageLoad = (e) => {
 }
 
+const loadMoreImages = () => {
+  const allImages = imageSet.value.images || []
+  const currentCount = displayedImages.value.length
+  
+  if (currentCount >= allImages.length) {
+    noMore.value = true
+    return
+  }
+  
+  const nextBatch = allImages.slice(currentCount, currentCount + pageSize)
+  displayedImages.value = [...displayedImages.value, ...nextBatch]
+  
+  if (displayedImages.value.length >= allImages.length) {
+    noMore.value = true
+  }
+}
+
+const onScroll = (e) => {
+  const el = waterfallRef.value
+  if (!el) return
+  
+  const scrollTop = el.scrollTop
+  const scrollHeight = el.scrollHeight
+  const clientHeight = el.clientHeight
+  
+  if (scrollTop + clientHeight >= scrollHeight - 200) {
+    if (!loadingMore.value && !noMore.value) {
+      loadingMore.value = true
+      setTimeout(() => {
+        loadMoreImages()
+        loadingMore.value = false
+      }, 100)
+    }
+  }
+}
+
 const fetchImageSet = async () => {
   loading.value = true
   try {
     const res = await imageSetApi.get(route.params.id)
     imageSet.value = res.data
+    displayedImages.value = imageSet.value.images?.slice(0, pageSize) || []
+    if (displayedImages.value.length >= (imageSet.value.images?.length || 0)) {
+      noMore.value = true
+    }
   } catch (e) {
     console.error('获取套图失败', e)
   } finally {
@@ -162,6 +216,28 @@ onMounted(() => {
   background: #e94560;
   color: #fff;
   border-color: #e94560;
+}
+
+.width-toggle {
+  display: flex;
+  gap: 5px;
+  margin-left: 10px;
+}
+
+.width-toggle button {
+  padding: 4px 8px;
+  background: #1a1a2e;
+  color: #888;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.width-toggle button.active {
+  background: #4a9;
+  color: #fff;
+  border-color: #4a9;
 }
 
 .loading, .empty {
@@ -252,11 +328,13 @@ onMounted(() => {
 
 .waterfall-view {
   padding: 0 20px;
+  max-height: calc(100vh - 150px);
+  overflow-y: auto;
 }
 
 .waterfall-grid {
-  column-count: 4;
-  column-gap: 15px;
+  column-count: 1;
+  column-gap: 0;
 }
 
 .waterfall-item {
@@ -268,7 +346,9 @@ onMounted(() => {
 }
 
 .waterfall-item img {
-  width: 100%;
+  width: v-bind(imageWidth + '%');
+  max-width: 100%;
+  margin: 0 auto;
   display: block;
   transition: transform 0.2s;
 }
@@ -277,29 +357,17 @@ onMounted(() => {
   transform: scale(1.05);
 }
 
-@media (max-width: 1200px) {
-  .waterfall-grid {
-    column-count: 3;
-  }
+.loading-more, .no-more {
+  text-align: center;
+  padding: 20px;
+  color: #888;
 }
 
-@media (max-width: 900px) {
-  .waterfall-grid {
-    column-count: 2;
-  }
+.nav-btn.prev {
+  left: 0;
 }
 
-@media (max-width: 600px) {
-  .waterfall-grid {
-    column-count: 1;
-  }
-
-  .nav-btn.prev {
-    left: 0;
-  }
-
-  .nav-btn.next {
-    right: 0;
-  }
+.nav-btn.next {
+  right: 0;
 }
 </style>
