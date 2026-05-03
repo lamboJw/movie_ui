@@ -20,12 +20,15 @@
     <div v-if="viewMode === 'folder'" class="folder-view">
       <!-- 面包屑导航 -->
       <div class="breadcrumb" v-if="currentPath">
-        <span
-          class="crumb"
-          :class="{ disabled: !canGoBack }"
-          @click="goBack"
-        >← 返回</span>
-        <span class="current">{{ currentPath }}</span>
+        <span class="crumb root" @click="goToPath('')">根目录</span>
+        <template v-for="(segment, index) in pathSegments" :key="index">
+          <span class="separator">/</span>
+          <span
+            class="crumb"
+            :class="{ current: index === pathSegments.length - 1 }"
+            @click="goToPath(getPathUpTo(index))"
+          >{{ segment }}</span>
+        </template>
       </div>
 
       <div v-if="loading" class="loading">加载中...</div>
@@ -73,12 +76,15 @@
     <div v-else class="list-view">
       <!-- 面包屑导航 -->
       <div class="breadcrumb" v-if="currentPath">
-        <span
-          class="crumb"
-          :class="{ disabled: !canGoBack }"
-          @click="goBack"
-        >← 返回</span>
-        <span class="current">{{ currentPath }}</span>
+        <span class="crumb root" @click="goToPath('')">根目录</span>
+        <template v-for="(segment, index) in pathSegments" :key="index">
+          <span class="separator">/</span>
+          <span
+            class="crumb"
+            :class="{ current: index === pathSegments.length - 1 }"
+            @click="goToPath(getPathUpTo(index))"
+          >{{ segment }}</span>
+        </template>
       </div>
 
       <div v-if="loading" class="loading">加载中...</div>
@@ -109,7 +115,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import MovieCard from '../components/MovieCard.vue'
 import ImageSetCard from '../components/ImageSetCard.vue'
@@ -140,6 +146,19 @@ const filterOptions = ref({
   directors: [],
   actors: []
 })
+
+const pathSegments = computed(() => {
+  if (!currentPath.value) return []
+  return currentPath.value.split('/').filter(s => s)
+})
+
+const getPathUpTo = (index) => {
+  return pathSegments.value.slice(0, index + 1).join('/')
+}
+
+const goToPath = (path) => {
+  router.push({ query: { mode: viewMode.value, path } })
+}
 
 const loadByRoute = () => {
   const mode = route.query.mode
@@ -362,19 +381,38 @@ onMounted(() => {
   font-size: 14px;
 }
 
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .breadcrumb .crumb {
   cursor: pointer;
   color: #4a9;
 }
 
-.breadcrumb .crumb.disabled {
-  color: #666;
-  cursor: not-allowed;
+.breadcrumb .crumb:hover:not(.current) {
+  color: #6cb;
+  text-decoration: underline;
 }
 
-.breadcrumb .current {
+.breadcrumb .crumb.root {
+  color: #e94560;
+}
+
+.breadcrumb .crumb.current {
   color: #888;
-  margin-left: 10px;
+  cursor: default;
+}
+
+.breadcrumb .crumb.current:hover {
+  text-decoration: none;
+}
+
+.breadcrumb .separator {
+  color: #666;
+  margin: 0 4px;
 }
 
 .folder-list {
