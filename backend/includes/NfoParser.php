@@ -18,6 +18,9 @@ class NfoParser {
      * 解析XML内容（公共方法）
      */
     private static function parseXmlContent($xmlContent, $nfoPath) {
+        // 检测并转换编码
+        $xmlContent = self::convertEncoding($xmlContent);
+
         $xml = simplexml_load_string($xmlContent);
 
         if ($xml === false) {
@@ -61,6 +64,44 @@ class NfoParser {
         $movie['nfo_path'] = $nfoPath;
 
         return $movie;
+    }
+
+    /**
+     * 检测并转换编码为UTF-8
+     */
+    private static function convertEncoding($content) {
+        // 尝试检测BOM并移除
+        if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
+            $content = substr($content, 3);
+        } elseif (substr($content, 0, 2) === "\xFF\xFE") {
+            $content = substr($content, 2);
+        }
+
+        // 如果已经是有效UTF-8，直接返回
+        if (mb_check_encoding($content, 'UTF-8')) {
+            return $content;
+        }
+
+        // 尝试Big5转UTF-8
+        if (mb_check_encoding($content, 'BIG5')) {
+            return mb_convert_encoding($content, 'UTF-8', 'BIG5');
+        }
+
+        // 尝试GB2312/GBK转UTF-8
+        if (mb_check_encoding($content, 'GB2312')) {
+            return mb_convert_encoding($content, 'UTF-8', 'GB2312');
+        }
+
+        if (mb_check_encoding($content, 'GBK')) {
+            return mb_convert_encoding($content, 'UTF-8', 'GBK');
+        }
+
+        // 尝试日文编码
+        if (mb_check_encoding($content, 'SJIS')) {
+            return mb_convert_encoding($content, 'UTF-8', 'SJIS');
+        }
+
+        return $content;
     }
 
     /**
@@ -125,23 +166,35 @@ class NfoParser {
 
     /**
      * 补充/disks/前缀（用于返回给前端）
+     * @param string $thumb 缩略图路径
+     * @param string|null $videoPath 视频文件路径，用于确定文件夹前缀
      */
-    public static function addDisksPrefix($thumb) {
+    public static function addDisksPrefix($thumb, $videoPath = null) {
         // 如果是完整URL，不处理
         if (filter_var($thumb, FILTER_VALIDATE_URL)) {
             return $thumb;
         }
-        
+
         // 如果已经有/disks/前缀，不重复添加
         if (strpos($thumb, '/disks/') === 0) {
             return $thumb;
         }
-        
-        // 补充/disks/前缀
+
         if (!empty($thumb)) {
+            // 如果提供了视频路径，使用视频所在文件夹作为前缀基础
+            if (!empty($videoPath)) {
+                $videoDir = dirname($videoPath);
+                // 去掉 /home/pi 前缀
+                $basePath = '/home/pi';
+                if (strpos($videoDir, $basePath) === 0) {
+                    $videoDir = substr($videoDir, strlen($basePath));
+                }
+                return $videoDir . '/' . ltrim($thumb, '/');
+            }
+            // 否则使用默认的/disks/前缀
             return '/disks/' . ltrim($thumb, '/');
         }
-        
+
         return $thumb;
     }
 

@@ -17,7 +17,7 @@ $db = Database::getInstance()->getConnection();
 
 // 随机获取一部电影
 $stmt = $db->prepare("
-    SELECT m.id, m.title, m.original_title, m.year, m.rating, m.thumb, m.plot, m.runtime, m.director, m.date_added,
+    SELECT m.id, m.title, m.original_title, m.year, m.rating, m.thumb, m.video_path, m.plot, m.runtime, m.director, m.date_added,
            GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') as genres
     FROM movies m
     LEFT JOIN movie_genres mg ON mg.movie_id = m.id
@@ -48,6 +48,19 @@ $movie['actors'] = $stmt->fetchAll();
 $movie['genres'] = explode(', ', $movie['genres'] ?? '');
 
 // 补充/disks/前缀
-$movie['thumb'] = NfoParser::addDisksPrefix($movie['thumb']);
+$movie['thumb'] = NfoParser::addDisksPrefix($movie['thumb'], $movie['video_path'] ?? null);
+$movie['folder'] = extractFolder($movie['video_path'] ?? '', $config['video_folders'] ?? []);
 
 echo json_encode($movie);
+
+// 提取文件夹层级的函数
+function extractFolder($videoPath, $videoFolders) {
+    foreach ($videoFolders as $folder) {
+        if (strpos($videoPath, $folder) === 0) {
+            $relativePath = substr($videoPath, strlen($folder));
+            $parts = array_filter(explode('/', $relativePath));
+            return implode('/', array_slice($parts, 0, -1));
+        }
+    }
+    return '';
+}

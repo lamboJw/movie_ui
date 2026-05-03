@@ -9,6 +9,7 @@
     </div>
     <div class="info">
       <h3 class="title">{{ movie.title }}</h3>
+      <p class="folder" v-if="movie.folder">{{ movie.folder }}</p>
       <p class="meta">
         <span v-if="movie.year">{{ movie.year }}</span>
         <span v-if="movie.rating">⭐ {{ movie.rating }}</span>
@@ -69,7 +70,16 @@ const formatDate = (dateStr) => {
 .title {
   font-size: 14px;
   font-weight: bold;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder {
+  font-size: 11px;
+  color: #4a9;
+  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

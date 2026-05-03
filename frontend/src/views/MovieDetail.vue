@@ -10,6 +10,7 @@
       <div class="info">
         <h1>{{ movie.title }}</h1>
         <p v-if="movie.original_title" class="original-title">{{ movie.original_title }}</p>
+        <p v-if="movie.folder" class="folder">📁 {{ movie.folder }}</p>
 
         <div class="meta">
           <span v-if="movie.year">{{ movie.year }}</span>
@@ -103,6 +104,12 @@ onMounted(async () => {
 
 .original-title {
   color: #888;
+  margin-bottom: 10px;
+}
+
+.folder {
+  color: #4a9;
+  font-size: 14px;
   margin-bottom: 15px;
 }
 

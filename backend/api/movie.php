@@ -64,6 +64,20 @@ $stmt->execute([$id]);
 $movie['genres'] = array_column($stmt->fetchAll(), 'name');
 
 // 补充/disks/前缀
-$movie['thumb'] = NfoParser::addDisksPrefix($movie['thumb']);
+$movie['thumb'] = NfoParser::addDisksPrefix($movie['thumb'], $movie['video_path'] ?? null);
+// 提取文件夹层级
+$movie['folder'] = extractFolder($movie['video_path'] ?? '', $config['video_folders'] ?? []);
 
 echo json_encode($movie);
+
+// 提取文件夹层级的函数
+function extractFolder($videoPath, $videoFolders) {
+    foreach ($videoFolders as $folder) {
+        if (strpos($videoPath, $folder) === 0) {
+            $relativePath = substr($videoPath, strlen($folder));
+            $parts = array_filter(explode('/', $relativePath));
+            return implode('/', array_slice($parts, 0, -1));
+        }
+    }
+    return '';
+}

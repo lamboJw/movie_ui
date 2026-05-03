@@ -77,7 +77,7 @@ $stmt->execute($params);
 $total = $stmt->fetch()['total'];
 
 // 查询电影列表
-$sql = "SELECT m.id, m.title, m.original_title, m.year, m.rating, m.thumb, m.date_added,
+$sql = "SELECT m.id, m.title, m.original_title, m.year, m.rating, m.thumb, m.video_path, m.date_added,
         GROUP_CONCAT(DISTINCT g.name SEPARATOR ', ') as genres
         FROM movies m
         LEFT JOIN movie_genres mg ON mg.movie_id = m.id
@@ -92,11 +92,25 @@ $execParams = array_merge($params, [$limit, $offset]);
 $stmt->execute($execParams);
 $movies = $stmt->fetchAll();
 
-// 处理日期格式和thumb前缀
+// 提取文件夹层级的函数
+function extractFolder($videoPath, $videoFolders) {
+    foreach ($videoFolders as $folder) {
+        if (strpos($videoPath, $folder) === 0) {
+            $relativePath = substr($videoPath, strlen($folder));
+            $parts = array_filter(explode('/', $relativePath));
+            return implode('/', array_slice($parts, 0, -1));
+        }
+    }
+    return '';
+}
+
+// 处理日期格式和thumb前缀和文件夹
 foreach ($movies as &$movie) {
     $movie['date_added'] = date('Y-m-d H:i', strtotime($movie['date_added']));
     // 补充/disks/前缀
-    $movie['thumb'] = NfoParser::addDisksPrefix($movie['thumb']);
+    $movie['thumb'] = NfoParser::addDisksPrefix($movie['thumb'], $movie['video_path'] ?? null);
+    // 提取文件夹层级
+    $movie['folder'] = extractFolder($movie['video_path'] ?? '', $config['video_folders'] ?? []);
 }
 
 // 返回结果

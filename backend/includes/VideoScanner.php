@@ -70,27 +70,42 @@ class VideoScanner {
     private function findNfoFileLocal($videoPath) {
         $dir = dirname($videoPath);
         $filename = pathinfo($videoPath, PATHINFO_FILENAME);
-        
+
         // 判断是否在jav目录下
         $isJavDir = $this->isInJavDirectory($videoPath);
-        
-        $nfoFiles = [];
-        
+
         if ($isJavDir) {
-            // jav目录：获取文件夹下所有的.nfo文件，选择最大的
-            $allNfoFiles = glob($dir . DIRECTORY_SEPARATOR . '*.nfo');
-            if (!empty($allNfoFiles)) {
-                // 选择文件大小最大的nfo
-                $largestFile = null;
-                $largestSize = -1;
-                foreach ($allNfoFiles as $nfoFile) {
-                    $size = filesize($nfoFile);
-                    if ($size > $largestSize) {
-                        $largestSize = $size;
-                        $largestFile = $nfoFile;
+            // jav目录：搜索文件夹下所有的.nfo文件（包括隐藏文件）
+            $nfoFiles = [];
+            $iterator = new DirectoryIterator($dir);
+            foreach ($iterator as $file) {
+                if ($file->isFile() && strtolower($file->getExtension()) === 'nfo') {
+                    $nfoFiles[] = $file->getPathname();
+                }
+            }
+
+            if (!empty($nfoFiles)) {
+                // 优先选择有thumb的nfo
+                $thumbNfo = null;
+                $earliestNfo = null;
+                $earliestMtime = PHP_INT_MAX;
+
+                foreach ($nfoFiles as $nfoFile) {
+                    $movieData = NfoParser::parse($nfoFile);
+                    if (!empty($movieData) && !empty($movieData['thumb'])) {
+                        $thumbNfo = $nfoFile;
+                        break;
+                    }
+
+                    // 记录修改时间最早的
+                    $mtime = filemtime($nfoFile);
+                    if ($mtime < $earliestMtime) {
+                        $earliestMtime = $mtime;
+                        $earliestNfo = $nfoFile;
                     }
                 }
-                return $largestFile;
+
+                return $thumbNfo ?? $earliestNfo;
             }
         } else {
             // 非jav目录：只检查同名.nfo
@@ -99,10 +114,10 @@ class VideoScanner {
                 return $nfoFile;
             }
         }
-        
+
         return null;
     }
-    
+
     /**
      * 判断视频是否在jav目录下
      */
@@ -116,7 +131,7 @@ class VideoScanner {
         return false;
     }
 
-    /**
+/**
      * 处理本地视频
      */
     private function processVideoLocal($videoPath, $nfoPath, &$results) {
@@ -125,10 +140,51 @@ class VideoScanner {
             return;
         }
 
-        // 转换thumb URL
-        $movieData['thumb'] = NfoParser::convertThumbUrl($movieData['thumb'], $nfoPath, $this->config);
-        // 去掉/disks/前缀，用于存储到数据库
-        $movieData['thumb'] = NfoParser::removeDisksPrefix($movieData['thumb']);
+        $filename = pathinfo($videoPath, PATHINFO_FILENAME);
+        $videoDir = dirname($videoPath);
+
+        // 如果没有thumb，搜索图片
+        if (empty($movieData['thumb'])) {
+            // 检查是否在 /disk1/.hidden/Media 目录
+            if (strpos($videoDir, '/disk1/.hidden/Media') !== false) {
+                // 搜索 {文件名}-poster.jpg
+                $thumbCandidate = $videoDir . '/' . $filename . '-poster.jpg';
+                if (!file_exists($thumbCandidate)) {
+                    // 再搜索 poster.jpg
+                    $thumbCandidate = $videoDir . '/poster.jpg';
+                }
+                if (file_exists($thumbCandidate)) {
+                    $movieData['thumb'] = $thumbCandidate;
+                }
+            }
+
+            // 如果还没找到，使用视频文件名+.png
+            if (empty($movieData['thumb'])) {
+                $movieData['thumb'] = $filename . '.png';
+            }
+        }
+
+        // 如果没有fanart，搜索图片
+        if (empty($movieData['fanart'])) {
+            // 检查是否在 /disk1/.hidden/Media 目录
+            if (strpos($videoDir, '/disk1/.hidden/Media') !== false) {
+                // 搜索 {文件名}-poster.jpg
+                $fanartCandidate = $videoDir . '/' . $filename . '-poster.jpg';
+                if (!file_exists($fanartCandidate)) {
+                    // 再搜索 poster.jpg
+                    $fanartCandidate = $videoDir . '/poster.jpg';
+                }
+                if (file_exists($fanartCandidate)) {
+                    $movieData['fanart'] = $fanartCandidate;
+                }
+            }
+
+            // 如果还没找到，使用视频文件名+.jpg
+            if (empty($movieData['fanart'])) {
+                $movieData['fanart'] = $filename . '.jpg';
+            }
+        }
+
         $movieData['video_path'] = $videoPath;
 
         $this->saveMovie($movieData, $results);
