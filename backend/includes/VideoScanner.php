@@ -122,13 +122,7 @@ class VideoScanner {
         $title = basename($dirPath);
         $coverImage = $images[0];
         $parentPath = dirname($dirPath);
-        foreach ($this->config['video_folders'] as $folder) {
-            if (str_starts_with($dirPath, $folder)) {
-                $folderParent = dirname($folder);
-                $parentPath = substr($parentPath, strlen($folderParent)+1);
-                break;
-            }
-        }
+        $parentPath = NfoParser::convertRootPath($parentPath, $this->config['video_folders']);
 
         $stmt = $this->db->prepare("SELECT id FROM image_sets WHERE folder_path = ?");
         $stmt->execute([$dirPath]);

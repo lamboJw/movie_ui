@@ -208,4 +208,17 @@ class NfoParser {
 
         return null;
     }
+
+    public static function convertRootPath($videoPath, $videoFolders)
+    {
+        if (empty($videoPath)) return '';
+
+        foreach ($videoFolders as $folder) {
+            if (str_starts_with($videoPath, $folder)) {
+                $folderParent = dirname($folder);
+                return substr($videoPath, strlen($folderParent) + 1);
+            }
+        }
+        return ltrim($videoPath, '/');
+    }
 }

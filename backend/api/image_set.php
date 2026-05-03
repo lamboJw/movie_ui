@@ -52,19 +52,7 @@ $coverImage = $imageSet['cover_image'];
 $coverPath = $imageSet['folder_path'] . '/' . $coverImage;
 $imageSet['cover_image'] = NfoParser::addDisksPrefix($coverPath, $imageSet['folder_path']);
 
-$imageSet['parent_path'] = convertVideoPath($imageSet['parent_path'], $config['video_folders'] ?? []);
+$imageSet['parent_path'] = NfoParser::convertRootPath($imageSet['parent_path'], $config['video_folders'] ?? []);
 
 echo json_encode($imageSet);
 
-function convertVideoPath($videoPath, $videoFolders) {
-    if (empty($videoPath)) return '';
-
-    foreach ($videoFolders as $folder) {
-        if (strpos($videoPath, $folder) === 0) {
-            $relativePath = substr($videoPath, strlen($folder));
-            $parts = array_filter(explode('/', $relativePath));
-            return implode('/', $parts);
-        }
-    }
-    return ltrim($videoPath, '/');
-}

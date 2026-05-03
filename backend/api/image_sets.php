@@ -58,25 +58,12 @@ foreach ($imageSets as &$set) {
     $coverImage = $set['cover_image'];
     $coverPath = $dirPath . '/' . $coverImage;
     $set['cover_image'] = NfoParser::addDisksPrefix($coverPath, $dirPath);
-    
+
     if (strpos($set['folder_path'], '/home/pi') === 0) {
         $set['folder_path'] = substr($set['folder_path'], 8);
     }
-    
-    $set['parent_path'] = convertVideoPath($set['parent_path'], $config['video_folders'] ?? []);
-}
 
-function convertVideoPath($videoPath, $videoFolders) {
-    if (empty($videoPath)) return '';
-    
-    foreach ($videoFolders as $folder) {
-        if (strpos($videoPath, $folder) === 0) {
-            $relativePath = substr($videoPath, strlen($folder));
-            $parts = array_filter(explode('/', $relativePath));
-            return implode('/', $parts);
-        }
-    }
-    return ltrim($videoPath, '/');
+    $set['parent_path'] = NfoParser::convertRootPath($set['parent_path'], $config['video_folders'] ?? []);
 }
 
 echo json_encode([
