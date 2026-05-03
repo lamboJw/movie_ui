@@ -26,5 +26,10 @@ export const movieApi = {
   // 浏览文件夹
   browse(path = '') {
     return axios.get(`${API_BASE}/browse`, { params: { path } })
+  },
+
+  // 获取筛选选项
+  getFilters(folder = '') {
+    return axios.get(`${API_BASE}/filters`, { params: { folder } })
   }
 }

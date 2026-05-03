@@ -1,7 +1,7 @@
 <template>
   <div class="movie-list">
     <div class="header">
-      <FilterBar @search="handleSearch" @filter="handleFilter" />
+      <FilterBar :filterOptions="filterOptions" @search="handleSearch" @filter="handleFilter" />
       <div class="mode-switch">
         <button 
           :class="{ active: viewMode === 'folder' }" 
@@ -115,6 +115,22 @@ const canGoBack = ref(false)
 const folders = ref([])
 const files = ref([])
 
+const filterOptions = ref({
+  years: [],
+  genres: [],
+  directors: [],
+  actors: []
+})
+
+const fetchFilterOptions = async (folder = '') => {
+  try {
+    const res = await movieApi.getFilters(folder)
+    filterOptions.value = res.data
+  } catch (e) {
+    console.error('获取筛选选项失败', e)
+  }
+}
+
 const switchMode = (mode) => {
   viewMode.value = mode
   localStorage.setItem('viewMode', mode)
@@ -140,6 +156,7 @@ const fetchBrowse = async (path = '') => {
     if (data.current_path !== undefined) {
       sessionStorage.setItem('lastBrowsePath', data.current_path)
     }
+    fetchFilterOptions(data.current_path || '')
   } catch (e) {
     console.error('获取目录失败', e)
   } finally {
@@ -188,6 +205,7 @@ const fetchMovies = async (folder = '') => {
     currentPath.value = folder
     canGoBack.value = folder !== ''
     sessionStorage.setItem('lastBrowsePath', folder)
+    fetchFilterOptions(folder)
   } catch (e) {
     console.error('获取电影列表失败', e)
   } finally {
@@ -236,6 +254,7 @@ onMounted(() => {
   } else {
     fetchMovies()
   }
+  fetchFilterOptions('')
 })
 </script>
 

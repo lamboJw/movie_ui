@@ -17,6 +17,8 @@ if (strpos($requestUri, '/api/movies') !== false) {
     require_once __DIR__ . '/api/scan.php';
 } elseif (strpos($requestUri, '/api/browse') !== false) {
     require_once __DIR__ . '/api/browse.php';
+} elseif (strpos($requestUri, '/api/filters') !== false) {
+    require_once __DIR__ . '/api/filters.php';
 } else {
     // 尝试提供前端静态文件
     $path = __DIR__ . '/public' . ($requestUri === '/' ? '/index.html' : $requestUri);
