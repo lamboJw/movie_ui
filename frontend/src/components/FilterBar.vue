@@ -1,16 +1,21 @@
 <template>
   <div class="filter-bar">
-    <div class="search-box">
-      <input
-        v-model="searchText"
-        @input="emitSearch"
-        type="text"
-        placeholder="搜索电影名称..."
-        class="search-input"
-      >
+    <div class="filter-header">
+      <div class="search-box">
+        <input
+          v-model="searchText"
+          @input="emitSearch"
+          type="text"
+          placeholder="搜索电影名称..."
+          class="search-input"
+        >
+      </div>
+      <button class="toggle-filters" @click="collapsed = !collapsed">
+        {{ collapsed ? '▼ 筛选' : '▲ 筛选' }}
+      </button>
     </div>
 
-    <div class="filters">
+    <div class="filters" v-show="!collapsed">
       <input v-model="filters.year" type="text" placeholder="年份" class="filter-input" @change="emitFilter">
       <input v-model="filters.genre" type="text" placeholder="类型" class="filter-input" @change="emitFilter">
       <input v-model="filters.director" type="text" placeholder="导演" class="filter-input" @change="emitFilter">
@@ -25,11 +30,25 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const emit = defineEmits(['search', 'filter'])
 
 const searchText = ref('')
+const collapsed = ref(true)
+
+function updateCollapsed() {
+  collapsed.value = window.innerWidth <= 768
+}
+
+onMounted(() => {
+  updateCollapsed()
+  window.addEventListener('resize', updateCollapsed)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateCollapsed)
+})
 const filters = ref({
   year: '',
   genre: '',
@@ -110,7 +129,46 @@ const emitFilter = () => {
   color: #888;
 }
 
+.filter-header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-header .search-box {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.toggle-filters {
+  display: none;
+  padding: 8px 12px;
+  background: #16213e;
+  color: #888;
+  border: 1px solid #333;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.toggle-filters:hover {
+  color: #fff;
+  border-color: #e94560;
+}
+
 @media (max-width: 768px) {
+  .filter-header {
+    flex-direction: row;
+  }
+
+  .toggle-filters {
+    display: inline-block;
+  }
+
+  .filter-bar {
+    padding: 12px;
+  }
   .filter-bar {
     padding: 12px;
   }

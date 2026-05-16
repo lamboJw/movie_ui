@@ -25,11 +25,17 @@
           :class="{ disabled: !canGoBack }"
           @click="goBack"
         >← 返回</span>
+        <span class="separator">/</span>
+        <span
+          class="crumb root"
+          @click="navigateToSegment('')"
+        >首页</span>
         <template v-for="(seg, i) in breadcrumbSegments" :key="i">
           <span class="separator">/</span>
           <span
             class="crumb segment"
-            @click="navigateToSegment(seg.path)"
+            :class="{ current: i === breadcrumbSegments.length - 1 }"
+            @click="i < breadcrumbSegments.length - 1 ? navigateToSegment(seg.path) : undefined"
           >{{ seg.name }}</span>
         </template>
       </div>
@@ -84,11 +90,17 @@
           :class="{ disabled: !canGoBack }"
           @click="goBack"
         >← 返回</span>
+        <span class="separator">/</span>
+        <span
+          class="crumb root"
+          @click="navigateToSegment('')"
+        >首页</span>
         <template v-for="(seg, i) in breadcrumbSegments" :key="i">
           <span class="separator">/</span>
           <span
             class="crumb segment"
-            @click="navigateToSegment(seg.path)"
+            :class="{ current: i === breadcrumbSegments.length - 1 }"
+            @click="i < breadcrumbSegments.length - 1 ? navigateToSegment(seg.path) : undefined"
           >{{ seg.name }}</span>
         </template>
       </div>
@@ -398,13 +410,21 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-.breadcrumb .crumb.segment {
+.breadcrumb .crumb.segment,
+.breadcrumb .crumb.root {
   color: #4a9;
   margin-left: 0;
 }
 
-.breadcrumb .crumb.segment:hover {
+.breadcrumb .crumb.segment:hover,
+.breadcrumb .crumb.root:hover {
   text-decoration: underline;
+}
+
+.breadcrumb .crumb.current {
+  color: #aaa;
+  cursor: default;
+  pointer-events: none;
 }
 
 .breadcrumb .separator {
@@ -525,11 +545,20 @@ onMounted(() => {
     align-items: stretch;
   }
 
+  .header-actions {
+    flex-shrink: 0;
+  }
+
+  .mode-switch {
+    flex-shrink: 0;
+  }
+
   .mode-switch button {
-    flex: 1;
+    flex: 0 1 auto;
     text-align: center;
-    padding: 8px;
+    padding: 8px 12px;
     font-size: 12px;
+    white-space: nowrap;
   }
 
   .breadcrumb {

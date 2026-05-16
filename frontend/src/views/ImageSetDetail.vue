@@ -1,16 +1,20 @@
 <template>
   <div class="image-set-detail">
     <div class="header">
-      <button class="back-btn" @click="$router.back()">← 返回</button>
-      <h2 class="title">{{ imageSet.title }}</h2>
-      <div class="mode-toggle">
-        <button :class="{ active: viewMode === 'slider' }" @click="viewMode = 'slider'">轮播</button>
-        <button :class="{ active: viewMode === 'waterfall' }" @click="viewMode = 'waterfall'">流式</button>
+      <div class="header-row">
+        <button class="back-btn" @click="$router.back()">← 返回</button>
+        <h2 class="title">{{ imageSet.title }}</h2>
       </div>
-      <div class="width-toggle">
-        <button :class="{ active: imageWidth === 50 }" @click="imageWidth = 50">50%</button>
-        <button :class="{ active: imageWidth === 75 }" @click="imageWidth = 75">75%</button>
-        <button :class="{ active: imageWidth === 100 }" @click="imageWidth = 100">100%</button>
+      <div class="header-row controls-row">
+        <div class="mode-toggle">
+          <button :class="{ active: viewMode === 'slider' }" @click="viewMode = 'slider'">轮播</button>
+          <button :class="{ active: viewMode === 'waterfall' }" @click="viewMode = 'waterfall'">流式</button>
+        </div>
+        <div class="width-toggle">
+          <button :class="{ active: imageWidth === 50 }" @click="imageWidth = 50">50%</button>
+          <button :class="{ active: imageWidth === 75 }" @click="imageWidth = 75">75%</button>
+          <button :class="{ active: imageWidth === 100 }" @click="imageWidth = 100">100%</button>
+        </div>
       </div>
     </div>
 
@@ -19,7 +23,7 @@
       <p>暂无图片</p>
     </div>
 
-    <!-- 轮播模式 -->
+      <!-- 轮播模式 -->
     <div
       v-else-if="viewMode === 'slider'"
       class="slider-view"
@@ -30,7 +34,11 @@
       @mouseleave="startNavHide"
     >
       <div class="slider-image-area" :style="{ maxWidth: imageWidth + '%' }">
-        <img :src="currentImage" @error="handleImageError" />
+        <div class="slider-stage">
+          <Transition :name="slideDirection">
+            <img :key="currentIndex" :src="currentImage" @error="handleImageError" />
+          </Transition>
+        </div>
       </div>
 
       <button
@@ -67,7 +75,6 @@
           v-for="(img, idx) in displayedImages"
           :key="idx"
           class="waterfall-item"
-          @click="viewMode = 'slider'; currentIndex = idx"
         >
           <img :src="img" @error="handleImageError" loading="lazy" />
         </div>
@@ -102,6 +109,7 @@ let navHideTimer = null
 let touchStartX = 0
 let touchStartY = 0
 let swiping = false
+const slideDirection = ref('slide-left')
 
 function showNav() {
   navVisible.value = true
@@ -128,6 +136,7 @@ function onSliderTouchMove(e) {
   const dy = e.touches[0].clientY - touchStartY
   if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
     swiping = true
+    e.preventDefault()
   }
 }
 
@@ -165,17 +174,20 @@ const startIndex = computed(() => Math.max(0, currentIndex.value - 3))
 
 const prevImage = () => {
   if (currentIndex.value > 0) {
+    slideDirection.value = 'slide-right'
     currentIndex.value--
   }
 }
 
 const nextImage = () => {
   if (currentIndex.value < imageSet.value.images.length - 1) {
+    slideDirection.value = 'slide-left'
     currentIndex.value++
   }
 }
 
 const goToImage = (idx) => {
+  slideDirection.value = idx > currentIndex.value ? 'slide-left' : 'slide-right'
   currentIndex.value = idx
 }
 
@@ -251,13 +263,21 @@ onMounted(() => {
 
 .header {
   padding: 20px 40px;
+  margin-bottom: 20px;
 }
 
-.header {
+.header-row {
   display: flex;
   align-items: center;
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: 12px;
+}
+
+.header-row + .header-row {
+  margin-top: 8px;
+}
+
+.controls-row {
+  gap: 16px;
 }
 
 .back-btn {
@@ -329,22 +349,50 @@ onMounted(() => {
   align-items: center;
   padding: 0 20px;
   position: relative;
+  touch-action: pan-y pinch-zoom;
 }
 
 .slider-image-area {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 100%;
-  max-height: calc(100vh - 200px);
-  padding: 10px 0;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
 }
 
-.slider-image-area img {
-  max-width: 100%;
-  max-height: calc(100vh - 200px);
+.slider-stage {
+  display: grid;
+  width: 100%;
+  overflow: hidden;
+}
+
+.slider-stage img {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: auto;
   object-fit: contain;
-  border-radius: 4px;
+  border-radius: 0;
+}
+
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform .35s ease;
+}
+
+.slide-left-enter-from {
+  transform: translateX(100%);
+}
+.slide-left-leave-to {
+  transform: translateX(-100%);
+}
+
+.slide-right-enter-from {
+  transform: translateX(-100%);
+}
+.slide-right-leave-to {
+  transform: translateX(100%);
 }
 
 .nav-btn {
@@ -471,29 +519,50 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .header {
-    padding: 12px 16px;
-    flex-wrap: wrap;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+
+  .header-row {
     gap: 8px;
   }
 
+  .header-row + .header-row {
+    margin-top: 6px;
+  }
+
+  .controls-row {
+    gap: 10px;
+  }
+
   .back-btn {
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 4px 8px;
+    font-size: 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .title {
-    font-size: 16px;
-    width: 100%;
-    order: -1;
+    font-size: 13px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .mode-toggle, .width-toggle {
-    gap: 5px;
+  .mode-toggle {
+    gap: 4px;
+  }
+
+  .width-toggle {
+    gap: 3px;
+    margin-left: 0;
   }
 
   .mode-toggle button, .width-toggle button {
-    padding: 6px 10px;
-    font-size: 11px;
+    padding: 4px 7px;
+    font-size: 10px;
   }
 
   .slider-view {
