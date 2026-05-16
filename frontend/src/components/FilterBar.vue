@@ -16,10 +16,30 @@
     </div>
 
     <div class="filters" v-show="!collapsed">
-      <input v-model="filters.year" type="text" placeholder="年份" class="filter-input" @change="emitFilter">
-      <input v-model="filters.genre" type="text" placeholder="类型" class="filter-input" @change="emitFilter">
-      <input v-model="filters.director" type="text" placeholder="导演" class="filter-input" @change="emitFilter">
-      <input v-model="filters.actor" type="text" placeholder="演员" class="filter-input" @change="emitFilter">
+      <Combobox
+        :options="filterOptions.years"
+        placeholder="年份"
+        v-model="filters.year"
+        @change="emitFilter"
+      />
+      <Combobox
+        :options="filterOptions.genres"
+        placeholder="类型"
+        v-model="filters.genre"
+        @change="emitFilter"
+      />
+      <Combobox
+        :options="filterOptions.directors"
+        placeholder="导演"
+        v-model="filters.director"
+        @change="emitFilter"
+      />
+      <Combobox
+        :options="filterOptions.actors"
+        placeholder="演员"
+        v-model="filters.actor"
+        @change="emitFilter"
+      />
       <div class="rating-filter">
         <input v-model="filters.min_rating" type="number" step="0.1" min="0" max="10" placeholder="最低分" class="filter-input" @change="emitFilter">
         <span>-</span>
@@ -31,6 +51,14 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import Combobox from './Combobox.vue'
+
+const props = defineProps({
+  filterOptions: {
+    type: Object,
+    default: () => ({ years: [], genres: [], directors: [], actors: [] })
+  }
+})
 
 const emit = defineEmits(['search', 'filter'])
 
@@ -49,6 +77,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', updateCollapsed)
 })
+
 const filters = ref({
   year: '',
   genre: '',
@@ -166,9 +195,6 @@ const emitFilter = () => {
     display: inline-block;
   }
 
-  .filter-bar {
-    padding: 12px;
-  }
   .filter-bar {
     padding: 12px;
   }

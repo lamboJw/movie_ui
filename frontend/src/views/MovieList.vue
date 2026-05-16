@@ -337,9 +337,7 @@ const triggerScan = async () => {
   }
 }
 
-onMounted(() => {
-  fetchFilterOptions('')
-})
+
 </script>
 
 <style scoped>
