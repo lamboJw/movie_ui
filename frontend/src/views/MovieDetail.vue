@@ -2,8 +2,12 @@
   <div class="movie-detail" v-if="movie">
     <button @click="$router.back()" class="back-btn">← 返回</button>
 
+    <div class="player-area" v-if="playing">
+      <VideoPlayer :id="route.params.id" :title="movie.title" inline @close="closePlayer" />
+    </div>
+
     <div class="detail-content">
-      <div class="poster">
+      <div class="poster" v-show="!playing">
         <img :src="movie.thumb || 'https://via.placeholder.com/300x450?text=No+Image'" :alt="movie.title">
         <button @click="playMovie" class="play-btn">▶ 播放</button>
       </div>
@@ -51,10 +55,12 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { movieApi } from '../api/movieApi'
+import VideoPlayer from '../components/VideoPlayer.vue'
 
 const route = useRoute()
 const router = useRouter()
 const movie = ref(null)
+const playing = ref(false)
 
 onMounted(async () => {
   try {
@@ -66,7 +72,11 @@ onMounted(async () => {
 })
 
 const playMovie = () => {
-  router.push(`/play/${route.params.id}`)
+  playing.value = true
+}
+
+const closePlayer = () => {
+  playing.value = false
 }
 </script>
 
@@ -222,6 +232,10 @@ const playMovie = () => {
   text-align: center;
   padding: 60px;
   color: #888;
+}
+
+.player-area {
+  margin-bottom: 24px;
 }
 
 @media (max-width: 768px) {

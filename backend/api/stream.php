@@ -21,7 +21,6 @@ if ($id) {
     $filePath = $movie['video_path'];
 } elseif ($path) {
     $filePath = $path;
-    // API 返回时剥离了 /home/pi 前缀，补回来
     if (strpos($filePath, '/disks/') === 0) {
         $filePath = '/home/pi' . $filePath;
     }
@@ -39,7 +38,6 @@ if (!file_exists($filePath) || !is_file($filePath)) {
     exit;
 }
 
-$fileSize = filesize($filePath);
 $fileName = basename($filePath);
 $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
 
@@ -60,6 +58,15 @@ header('Accept-Ranges: bytes');
 header('Content-Disposition: inline; filename="' . $fileName . '"');
 header('Cache-Control: no-cache');
 
+// X-Accel-Redirect 零拷贝（nginx 模式）
+if (!empty($_SERVER['X_ACCEL_ENABLED'])) {
+    $relativePath = substr($filePath, strlen('/home/pi'));
+    header('X-Accel-Redirect: /x-accel-video' . $relativePath);
+    exit;
+}
+
+// 开发服务器回退：PHP 直接流式传输
+$fileSize = filesize($filePath);
 if (isset($_SERVER['HTTP_RANGE'])) {
     preg_match('/bytes=(\d+)-(\d*)/', $_SERVER['HTTP_RANGE'], $matches);
     $start = intval($matches[1]);

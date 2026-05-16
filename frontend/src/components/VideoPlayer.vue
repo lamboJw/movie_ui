@@ -1,6 +1,7 @@
 <template>
   <div
     class="player-wrapper"
+    :class="{ inline }"
     ref="wrapperRef"
     @keydown="onKeydown"
     tabindex="0"
@@ -28,11 +29,11 @@
 
     <!-- 中央状态图标 -->
     <div class="center-icon" v-if="showCenterIcon" :class="{ fadeout: centerIconFade }">
-      <span v-if="centerIconType === 'play'">▶</span>
-      <span v-else-if="centerIconType === 'pause'">⏸</span>
+      <span v-if="centerIconType === 'play'" class="center-icon-btn">▶</span>
+      <span v-else-if="centerIconType === 'pause'" class="center-icon-btn">⏸</span>
       <span v-else-if="centerIconType === 'loading'" class="spinner"></span>
-      <span v-else-if="centerIconType === 'rewind'">⏪</span>
-      <span v-else-if="centerIconType === 'forward'">⏩</span>
+      <span v-else-if="centerIconType === 'rewind'" class="center-icon-btn bg">⏪</span>
+      <span v-else-if="centerIconType === 'forward'" class="center-icon-btn bg">⏩</span>
     </div>
 
     <!-- 遮挡层（用于捕获触控事件，不遮挡视频点击） -->
@@ -41,15 +42,12 @@
       <div class="top-bar">
         <button class="control-btn back-btn" @click="goBack">← 返回</button>
         <span class="title">{{ title }}</span>
-        <button class="control-btn" @click="toggleFullscreen">
-          {{ isFullscreen ? '⛶' : '⛶' }}
-        </button>
       </div>
 
       <!-- 底部控制栏 -->
       <div class="bottom-bar" @click.stop>
         <!-- 进度条 -->
-        <div class="progress-container" ref="progressRef" @click="seekByClick" @mousedown="startDragSeek">
+        <div class="progress-container" ref="progressRef" @click="seekByClick" @mousedown="startDragSeek" @touchstart.stop.prevent="onProgressTouchStart" @touchmove="onProgressTouchMove" @touchend="onProgressTouchEnd">
           <div class="progress-track">
             <div class="progress-buffered" :style="{ width: bufferedPercent + '%' }"></div>
             <div class="progress-current" :style="{ width: progressPercent + '%' }"></div>
@@ -65,7 +63,7 @@
             <span class="time-display">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
           </div>
           <div class="controls-right">
-            <button class="control-btn speed-btn" @click="cycleSpeed">
+            <button class="control-btn speed-btn" @click="toggleSpeedPanel">
               {{ currentSpeed }}×
             </button>
             <button class="control-btn" @click="toggleFullscreen">⛶</button>
@@ -93,9 +91,11 @@ import { useRouter } from 'vue-router'
 
 const props = defineProps({
   id: { type: [String, Number], required: true },
-  title: { type: String, default: '' }
+  title: { type: String, default: '' },
+  inline: { type: Boolean, default: false }
 })
 
+const emit = defineEmits(['close'])
 const router = useRouter()
 const wrapperRef = ref(null)
 const videoRef = ref(null)
@@ -134,6 +134,12 @@ let lastTapTime = 0
 let isSwiping = false
 let swipeStartTime = 0
 let isDraggingSeek = false
+let skipNextTap = false
+let progressTouchId = null
+let rewindRAF = null
+let rewindStartVTime = 0
+let rewindStartWallTime = 0
+const REWIND_SPEED = 3
 
 onMounted(() => {
   streamUrl.value = `/api/stream?id=${props.id}`
@@ -149,6 +155,8 @@ function clearTimers() {
   if (hideTimer) clearTimeout(hideTimer)
   if (longPressTimer) clearTimeout(longPressTimer)
   if (longPressInterval) clearInterval(longPressInterval)
+  if (rewindRAF) cancelAnimationFrame(rewindRAF)
+  rewindRAF = null
 }
 
 function showControls() {
@@ -190,6 +198,16 @@ function seekRelative(seconds) {
   video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds))
 }
 
+function doRewind(timestamp) {
+  if (!isLongPressing || longPressDirection !== 'rewind') return
+  const video = videoRef.value
+  if (!video) return
+  const elapsed = (timestamp - rewindStartWallTime) / 1000
+  const targetTime = Math.max(0, rewindStartVTime - elapsed * REWIND_SPEED)
+  video.currentTime = targetTime
+  rewindRAF = requestAnimationFrame(doRewind)
+}
+
 function togglePlay() {
   const video = videoRef.value
   if (!video) return
@@ -200,25 +218,46 @@ function togglePlay() {
   }
 }
 
-function toggleFullscreen() {
+async function toggleFullscreen() {
   const el = wrapperRef.value
   if (!document.fullscreenElement) {
-    el?.requestFullscreen?.()
+    await el?.requestFullscreen?.()
     isFullscreen.value = true
+    const video = videoRef.value
+    if (video?.videoWidth && screen?.orientation?.lock) {
+      try {
+        await screen.orientation.lock(
+          video.videoWidth > video.videoHeight ? 'landscape' : 'portrait'
+        )
+      } catch (_) {}
+    }
   } else {
-    document.exitFullscreen?.()
+    await document.exitFullscreen?.()
     isFullscreen.value = false
+    screen?.orientation?.unlock?.()
   }
 }
 
 function goBack() {
-  router.back()
+  if (props.inline) {
+    stopPlayback()
+    emit('close')
+  } else {
+    router.back()
+  }
 }
 
-function cycleSpeed() {
-  const idx = speedOptions.indexOf(currentSpeed.value)
-  const next = (idx + 1) % speedOptions.length
-  setSpeed(speedOptions[next])
+function stopPlayback() {
+  const video = videoRef.value
+  if (video) {
+    video.pause()
+    video.removeAttribute('src')
+    video.load()
+  }
+}
+
+function toggleSpeedPanel() {
+  showSpeedPanel.value = !showSpeedPanel.value
 }
 
 function setSpeed(speed) {
@@ -331,6 +370,31 @@ function onDragSeekEnd() {
   document.removeEventListener('mouseup', onDragSeekEnd)
 }
 
+// ---------- 进度条触摸 ----------
+function onProgressTouchStart(e) {
+  const touch = e.touches[0]
+  progressTouchId = touch.identifier
+  seekByTouch(touch)
+}
+
+function onProgressTouchMove(e) {
+  const touch = Array.from(e.changedTouches).find(t => t.identifier === progressTouchId)
+  if (!touch) return
+  seekByTouch(touch)
+}
+
+function onProgressTouchEnd() {
+  progressTouchId = null
+}
+
+function seekByTouch(touch) {
+  const rect = progressRef.value?.getBoundingClientRect()
+  if (!rect || !videoRef.value || !duration.value) return
+  let ratio = (touch.clientX - rect.left) / rect.width
+  ratio = Math.max(0, Math.min(1, ratio))
+  videoRef.value.currentTime = ratio * duration.value
+}
+
 // ---------- 移动端手势 ----------
 function onTouchStart(e) {
   const touch = e.touches[0]
@@ -345,6 +409,7 @@ function onTouchStart(e) {
   const now = Date.now()
   if (now - lastTapTime < 300) {
     lastTapTime = 0
+    skipNextTap = true
     togglePlay()
     return
   }
@@ -362,11 +427,10 @@ function onTouchStart(e) {
     if (!video) return
 
     if (isLeft) {
-      // 后退：手动跳转模拟倒放
       setCenterIcon('rewind')
-      longPressInterval = setInterval(() => {
-        video.currentTime = Math.max(0, video.currentTime - 0.3)
-      }, 100)
+      rewindStartVTime = video.currentTime
+      rewindStartWallTime = performance.now()
+      rewindRAF = requestAnimationFrame(doRewind)
     } else {
       // 快进：3倍速播放
       setCenterIcon('forward')
@@ -394,7 +458,12 @@ function onTouchMove(e) {
         isLongPressing = false
         if (longPressInterval) clearInterval(longPressInterval)
         longPressInterval = null
-        if (videoRef.value) videoRef.value.playbackRate = currentSpeed.value
+        if (rewindRAF) {
+          cancelAnimationFrame(rewindRAF)
+          rewindRAF = null
+        }
+        const v = videoRef.value
+        if (v) v.playbackRate = currentSpeed.value
       }
     }
 
@@ -420,8 +489,13 @@ function onTouchEnd() {
       clearInterval(longPressInterval)
       longPressInterval = null
     }
-    if (videoRef.value) {
-      videoRef.value.playbackRate = currentSpeed.value
+    if (rewindRAF) {
+      cancelAnimationFrame(rewindRAF)
+      rewindRAF = null
+    }
+    const video = videoRef.value
+    if (video) {
+      video.playbackRate = currentSpeed.value
     }
     hideCenterIcon()
     return
@@ -435,8 +509,13 @@ function onTouchEnd() {
   }
 
   // 单击显示/隐藏控制栏
+  if (skipNextTap) {
+    skipNextTap = false
+    return
+  }
   if (controlsVisible.value && isPlaying.value) {
     controlsVisible.value = false
+    showSpeedPanel.value = false
   } else {
     showControls()
   }
@@ -445,6 +524,7 @@ function onTouchEnd() {
 }
 
 function onOverlayClick() {
+  showSpeedPanel.value = false
   if (!isPlaying.value && !controlsVisible.value) {
     showControls()
   }
@@ -461,6 +541,23 @@ function onOverlayClick() {
   outline: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.player-wrapper.inline {
+  height: 0;
+  padding-bottom: 56.25%;
+  border-radius: 12px;
+}
+
+.player-wrapper.inline video,
+.player-wrapper.inline .overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+}
+
+.player-wrapper.inline .overlay {
+  border-radius: 12px;
 }
 
 .player-wrapper video {
@@ -582,8 +679,10 @@ function onOverlayClick() {
   transition: background .15s;
 }
 
-.control-btn:hover {
-  background: rgba(255,255,255,.15);
+@media (hover: hover) {
+  .control-btn:hover {
+    background: rgba(255,255,255,.15);
+  }
 }
 
 .speed-btn {
@@ -634,9 +733,6 @@ function onOverlayClick() {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 64px;
-  color: #fff;
-  text-shadow: 0 2px 12px rgba(0,0,0,.6);
   pointer-events: none;
   transition: opacity .3s ease;
   z-index: 5;
@@ -644,6 +740,21 @@ function onOverlayClick() {
 
 .center-icon.fadeout {
   opacity: 0;
+}
+
+.center-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  font-size: 48px;
+  color: rgba(255,255,255,.9);
+}
+
+.center-icon-btn.bg {
+  background: rgba(0,0,0,.55);
+  border-radius: 50%;
 }
 
 .spinner {
