@@ -31,5 +31,10 @@ export const movieApi = {
   // 获取筛选选项
   getFilters(folder = '') {
     return axios.get(`${API_BASE}/filters`, { params: { folder } })
+  },
+
+  // 获取流媒体地址
+  getStreamUrl(id) {
+    return `${API_BASE}/stream?id=${id}`
   }
 }

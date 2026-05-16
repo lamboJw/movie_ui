@@ -1,41 +1,53 @@
-# AGENTS.md
+# movie_ui — agent guide
 
-## Running the App
+## Stack
+- **Backend**: PHP 8.1+ (no framework), entrypoint `backend/index.php` does routing
+- **Frontend**: Vue 3 + Vue Router 4 + Axios, built with Vite
+- **Database**: MySQL 5.7+ / MariaDB 10.2+, schema in `database/schema.sql`
+- **Deploy target**: Raspberry Pi (192.168.31.59), nginx reverse-proxying PHP-FPM
 
-### Development
-- **PHP backend (dev)**: `cd backend && php -S localhost:8080`
-- **Frontend dev**: `cd frontend && npm run dev`
-- **Frontend build**: `cd frontend && npm run build` (outputs to `public/`)
-- **Database**: `mysql -u root -p < database/schema.sql`
+## Commands
 
-### Production (Raspberry Pi)
-- Copy nginx config: `backend/nginx.conf` → `/etc/nginx/sites-available/movie` → `ln -s /etc/nginx/sites-available/movie /etc/nginx/sites-enabled/`- Start service: `bash backend/service.sh` or `sudo systemctl restart php8.1-fpm nginx`
+```bash
+# dev: start PHP built-in server (serves both API and static frontend)
+cd backend && php -S localhost:8080
 
-## Project Structure
+# dev: start Vite dev server (proxies /api to PHP on port 8899)
+cd frontend && npm run dev
 
+# build frontend (output goes to public/)
+cd frontend && npm run build
+
+# scan videos (trigger via API)
+curl http://localhost:8080/api/scan
+# or via CLI script
+php backend/api/scan_cli.php
 ```
-movie_ui/
-├── backend/              # PHP 8.1 API (entry: index.php)
-│   ├── api/              # API endpoints (movies, movie, random, scan)
-│   ├── config/           # config.php (DB, SSH, video paths)
-│   └── includes/         # Database, NfoParser, SshConnection, VideoScanner
-├── frontend/             # Vue 3 + Vite
-│   └── src/views/        # MovieList.vue, MovieDetail.vue
-├── public/               # Built frontend (served by PHP backend)
-└── database/schema.sql   # MySQL schema
+
+## Key architecture
+
+- `backend/index.php` is the single PHP entrypoint. It routes paths under `/api/` to files in `backend/api/`. All other paths serve static files from `public/`.
+- `backend/config/config.php` has DB creds, scan mode (`local`|`ssh`), video folder paths, and image URL mapping.
+- SSH mode uses system `ssh` + `sshpass` (NOT phpseclib). `backend/includes/SshConnection.php`.
+- The frontend build output lands in `public/`. `public/` is gitignored.
+- Nginx config (`nginx/movie_ui.conf`) serves on port 8899. Vite dev server proxies `/api` to `http://192.168.31.59:8899/api`.
+- **Video streaming**: `backend/api/stream.php` supports HTTP Range requests (seek/scrub). Route `/api/stream?id=X`. Frontend component at `frontend/src/components/VideoPlayer.vue`, route `/play/:id`.
+- **Image sets**: `/api/image_set?id=X` and `/api/image_sets` endpoints. Frontend at `/image_set/:id`.
+- **Mobile responsive**: All frontend views have `@media (max-width: 768px)` breakpoints.
+
+## Database
+
+```bash
+mysql -u root -p < database/schema.sql
 ```
 
-## Key Commands
+Creates `movie_db` with tables: `movies`, `genres`, `movie_genres`, `actors`, `movie_actors`.
 
-- API endpoints: `/api/movies`, `/api/movie?id=X`, `/api/random`, `/api/scan`
-- Config: edit `backend/config/config.php` for DB credentials, SSH settings, video paths
+## Quirks
 
-## Tech Notes
-
-- SSH mode uses system `ssh` + `sshpass` (not phpseclib)
-- Frontend proxies to backend in dev mode
-- NFO parsing expects Kodi XML format in video directories
-
-## No Formal Lint/Typecheck
-
-This repo has no ESLint, Psalm, PHP CS Fixer, or similar tooling configured.
+- **No test framework, no linter, no typecheck**. None configured.
+- **Composer is optional**. The backend uses `require_once` for includes; `composer.json` only defines classmap autoloading for `backend/includes/` and `backend/config/`.
+- **`public/` is gitignored** (build artifact). If it's empty, the frontend won't load until `npm run build` is run.
+- **Build script** (`frontend/package.json`) auto-copies `dist/*` to `../public/` after Vite build (Unix `rm -rf ../public/assets && cp -r dist/* ../public/`).
+- **config.php contains real credentials** for a local/RPi dev setup. Don't commit secrets.
+- **DEPLOY.md** has the full Raspberry Pi deployment procedure (PHP-FPM + nginx + Python HTTP server for covers).

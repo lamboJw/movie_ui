@@ -2,42 +2,22 @@
   <div id="app">
     <header class="header">
       <h1>🎬 电影库</h1>
-      <div class="header-actions">
-        <button @click="triggerScan" :disabled="scanning" class="scan-btn">
-          {{ scanning ? '扫描中...' : '🔄 扫描' }}
-        </button>
-        <button @click="getRandomMovie" class="random-btn">🎲 随机一部</button>
-      </div>
+      <button @click="getRandomMovie" class="random-btn">🎲 随机一部</button>
     </header>
     <router-view></router-view>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const scanning = ref(false)
 
 const getRandomMovie = async () => {
   const res = await fetch('/api/random')
   const movie = await res.json()
   if (movie.id) {
     router.push(`/movie/${movie.id}`)
-  }
-}
-
-const triggerScan = async () => {
-  if (scanning.value) return
-  scanning.value = true
-  try {
-    await fetch('/api/scan')
-    window.location.reload()
-  } catch (e) {
-    console.error('扫描失败', e)
-  } finally {
-    scanning.value = false
   }
 }
 </script>
@@ -67,31 +47,6 @@ body {
 .header h1 {
   font-size: 24px;
   color: #e94560;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.scan-btn {
-  padding: 10px 20px;
-  background: #1a1a2e;
-  color: #888;
-  border: 1px solid #333;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.scan-btn:hover:not(:disabled) {
-  background: #2a2a3e;
-  color: #fff;
-}
-
-.scan-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .random-btn {
@@ -124,12 +79,7 @@ body {
     font-size: 20px;
   }
 
-  .header-actions {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .scan-btn, .random-btn {
+  .random-btn, .scan-btn {
     padding: 8px 12px;
     font-size: 12px;
   }

@@ -20,14 +20,17 @@
     <div v-if="viewMode === 'folder'" class="folder-view">
       <!-- 面包屑导航 -->
       <div class="breadcrumb" v-if="currentPath">
-        <span class="crumb root" @click="goToPath('')">根目录</span>
-        <template v-for="(segment, index) in pathSegments" :key="index">
+        <span
+          class="crumb"
+          :class="{ disabled: !canGoBack }"
+          @click="goBack"
+        >← 返回</span>
+        <template v-for="(seg, i) in breadcrumbSegments" :key="i">
           <span class="separator">/</span>
           <span
-            class="crumb"
-            :class="{ current: index === pathSegments.length - 1 }"
-            @click="goToPath(getPathUpTo(index))"
-          >{{ segment }}</span>
+            class="crumb segment"
+            @click="navigateToSegment(seg.path)"
+          >{{ seg.name }}</span>
         </template>
       </div>
 
@@ -76,14 +79,17 @@
     <div v-else class="list-view">
       <!-- 面包屑导航 -->
       <div class="breadcrumb" v-if="currentPath">
-        <span class="crumb root" @click="goToPath('')">根目录</span>
-        <template v-for="(segment, index) in pathSegments" :key="index">
+        <span
+          class="crumb"
+          :class="{ disabled: !canGoBack }"
+          @click="goBack"
+        >← 返回</span>
+        <template v-for="(seg, i) in breadcrumbSegments" :key="i">
           <span class="separator">/</span>
           <span
-            class="crumb"
-            :class="{ current: index === pathSegments.length - 1 }"
-            @click="goToPath(getPathUpTo(index))"
-          >{{ segment }}</span>
+            class="crumb segment"
+            @click="navigateToSegment(seg.path)"
+          >{{ seg.name }}</span>
         </template>
       </div>
 
@@ -140,6 +146,20 @@ const folders = ref([])
 const files = ref([])
 const imageSets = ref([])
 
+const breadcrumbSegments = computed(() => {
+  if (!currentPath.value) return []
+  const parts = currentPath.value.split('/').filter(Boolean)
+  let acc = ''
+  return parts.map(name => {
+    acc = acc ? acc + '/' + name : name
+    return { name, path: acc }
+  })
+})
+
+const navigateToSegment = (path) => {
+  router.push({ query: { mode: viewMode.value, path } })
+}
+
 const filterOptions = ref({
   years: [],
   genres: [],
@@ -147,23 +167,10 @@ const filterOptions = ref({
   actors: []
 })
 
-const pathSegments = computed(() => {
-  if (!currentPath.value) return []
-  return currentPath.value.split('/').filter(s => s)
-})
-
-const getPathUpTo = (index) => {
-  return pathSegments.value.slice(0, index + 1).join('/')
-}
-
-const goToPath = (path) => {
-  router.push({ query: { mode: viewMode.value, path } })
-}
-
 const loadByRoute = () => {
   const mode = route.query.mode
   const path = route.query.path || ''
-  
+
   if (mode === 'folder') {
     viewMode.value = 'folder'
     fetchBrowse(path)
@@ -381,38 +388,28 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
 .breadcrumb .crumb {
   cursor: pointer;
   color: #4a9;
 }
 
-.breadcrumb .crumb:hover:not(.current) {
-  color: #6cb;
+.breadcrumb .crumb.disabled {
+  color: #666;
+  cursor: not-allowed;
+}
+
+.breadcrumb .crumb.segment {
+  color: #4a9;
+  margin-left: 0;
+}
+
+.breadcrumb .crumb.segment:hover {
   text-decoration: underline;
-}
-
-.breadcrumb .crumb.root {
-  color: #e94560;
-}
-
-.breadcrumb .crumb.current {
-  color: #888;
-  cursor: default;
-}
-
-.breadcrumb .crumb.current:hover {
-  text-decoration: none;
 }
 
 .breadcrumb .separator {
   color: #666;
-  margin: 0 4px;
+  margin: 0 6px;
 }
 
 .folder-list {
@@ -526,10 +523,6 @@ onMounted(() => {
     flex-direction: column;
     gap: 12px;
     align-items: stretch;
-  }
-
-  .header-actions {
-    justify-content: space-between;
   }
 
   .mode-switch button {

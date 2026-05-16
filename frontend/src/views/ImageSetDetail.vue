@@ -20,22 +20,44 @@
     </div>
 
     <!-- 轮播模式 -->
-    <div v-else-if="viewMode === 'slider'" class="slider-view">
-      <div class="main-image">
-        <button class="nav-btn prev" @click="prevImage" :disabled="currentIndex === 0">←</button>
-        <img :src="currentImage" :style="{ maxWidth: imageWidth + '%' }" @error="handleImageError" @load="onImageLoad" />
-        <button class="nav-btn next" @click="nextImage" :disabled="currentIndex >= imageSet.images.length - 1">→</button>
+    <div
+      v-else-if="viewMode === 'slider'"
+      class="slider-view"
+      @touchstart="onSliderTouchStart"
+      @touchmove="onSliderTouchMove"
+      @touchend="onSliderTouchEnd"
+      @mousemove="showNav"
+      @mouseleave="startNavHide"
+    >
+      <div class="slider-image-area" :style="{ maxWidth: imageWidth + '%' }">
+        <img :src="currentImage" @error="handleImageError" />
       </div>
-      <div class="thumbnails">
-        <img
-          v-for="(img, idx) in visibleThumbs"
-          :key="idx"
-          :src="img"
-          :class="{ active: currentIndex === startIndex + idx }"
-          @click="goToImage(startIndex + idx)"
-        />
+
+      <button
+        class="nav-btn prev"
+        :class="{ hidden: !navVisible }"
+        @click="prevImage"
+        :disabled="currentIndex === 0"
+      >‹</button>
+      <button
+        class="nav-btn next"
+        :class="{ hidden: !navVisible }"
+        @click="nextImage"
+        :disabled="currentIndex >= imageSet.images.length - 1"
+      >›</button>
+
+      <div class="slider-footer" :class="{ hidden: !navVisible }">
+        <div class="thumbnails">
+          <img
+            v-for="(img, idx) in visibleThumbs"
+            :key="idx"
+            :src="img"
+            :class="{ active: currentIndex === startIndex + idx }"
+            @click="goToImage(startIndex + idx)"
+          />
+        </div>
+        <div class="counter">{{ currentIndex + 1 }} / {{ imageSet.images.length }}</div>
       </div>
-      <div class="counter">{{ currentIndex + 1 }} / {{ imageSet.images.length }}</div>
     </div>
 
     <!-- 流式模式 - 懒加载 -->
@@ -45,6 +67,7 @@
           v-for="(img, idx) in displayedImages"
           :key="idx"
           class="waterfall-item"
+          @click="viewMode = 'slider'; currentIndex = idx"
         >
           <img :src="img" @error="handleImageError" loading="lazy" />
         </div>
@@ -66,13 +89,65 @@ const imageSet = ref({})
 const loading = ref(true)
 const currentIndex = ref(0)
 const viewMode = ref('slider')
-const imageWidth = ref(100)
+const imageWidth = ref(50)
 
 const waterfallRef = ref(null)
 const displayedImages = ref([])
 const loadingMore = ref(false)
 const noMore = ref(false)
 const pageSize = 20
+
+const navVisible = ref(true)
+let navHideTimer = null
+let touchStartX = 0
+let touchStartY = 0
+let swiping = false
+
+function showNav() {
+  navVisible.value = true
+  startNavHide()
+}
+
+function startNavHide() {
+  if (navHideTimer) clearTimeout(navHideTimer)
+  navHideTimer = setTimeout(() => {
+    navVisible.value = false
+  }, 2000)
+}
+
+function onSliderTouchStart(e) {
+  touchStartX = e.touches[0].clientX
+  touchStartY = e.touches[0].clientY
+  swiping = false
+  showNav()
+}
+
+function onSliderTouchMove(e) {
+  if (!touchStartX) return
+  const dx = e.touches[0].clientX - touchStartX
+  const dy = e.touches[0].clientY - touchStartY
+  if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+    swiping = true
+  }
+}
+
+function onSliderTouchEnd() {
+  if (!swiping || !touchStartX) return
+  if (navHideTimer) clearTimeout(navHideTimer)
+  const rect = document.querySelector('.slider-view')?.getBoundingClientRect()
+  if (!rect) return
+  const dx = touchStartX - rect.left
+  const ratio = dx / rect.width
+  if (ratio < 0.5) {
+    prevImage()
+  } else {
+    nextImage()
+  }
+  touchStartX = 0
+  touchStartY = 0
+  swiping = false
+  showNav()
+}
 
 const currentImage = computed(() => imageSet.value.images?.[currentIndex.value] || '')
 
@@ -170,9 +245,12 @@ onMounted(() => {
 
 <style scoped>
 .image-set-detail {
-  padding: 20px 40px;
   min-height: 100vh;
   background: #0f0f1a;
+}
+
+.header {
+  padding: 20px 40px;
 }
 
 .header {
@@ -249,60 +327,89 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 0 20px;
+  position: relative;
 }
 
-.main-image {
-  position: relative;
+.slider-image-area {
   display: flex;
   align-items: center;
   justify-content: center;
-  max-width: 90vw;
-  max-height: 70vh;
+  width: 100%;
+  max-height: calc(100vh - 200px);
+  padding: 10px 0;
 }
 
-.main-image img {
+.slider-image-area img {
   max-width: 100%;
-  max-height: 70vh;
+  max-height: calc(100vh - 200px);
   object-fit: contain;
+  border-radius: 4px;
 }
 
 .nav-btn {
-  position: absolute;
+  position: fixed;
   top: 50%;
   transform: translateY(-50%);
-  padding: 20px 15px;
-  background: rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  width: 60px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
   color: #fff;
   border: none;
-  font-size: 24px;
+  font-size: 36px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: opacity .3s, background .2s;
+  border-radius: 4px;
 }
 
 .nav-btn:hover:not(:disabled) {
-  background: rgba(233, 69, 96, 0.8);
+  background: rgba(233, 69, 96, 0.7);
 }
 
 .nav-btn.prev {
-  left: -60px;
+  left: 0;
 }
 
 .nav-btn.next {
-  right: -60px;
+  right: 0;
+}
+
+.nav-btn.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .nav-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.15;
   cursor: not-allowed;
+}
+
+.slider-footer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  background: linear-gradient(transparent, rgba(0,0,0,.5));
+  transition: opacity .3s;
+}
+
+.slider-footer.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .thumbnails {
   display: flex;
-  gap: 10px;
-  margin-top: 20px;
+  gap: 8px;
   overflow-x: auto;
   max-width: 100%;
-  padding: 10px;
+  padding: 4px 10px;
 }
 
 .thumbnails img {
@@ -341,6 +448,7 @@ onMounted(() => {
   margin-bottom: 15px;
   border-radius: 8px;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .waterfall-item img {
@@ -348,6 +456,11 @@ onMounted(() => {
   max-width: 100%;
   margin: 0 auto;
   display: block;
+  transition: transform 0.2s;
+}
+
+.waterfall-item:hover img {
+  transform: scale(1.05);
 }
 
 .loading-more, .no-more {
@@ -356,22 +469,11 @@ onMounted(() => {
   color: #888;
 }
 
-.nav-btn.prev {
-  left: 0;
-}
-
-.nav-btn.next {
-  right: 0;
-}
-
 @media (max-width: 768px) {
-  .image-set-detail {
-    padding: 12px;
-  }
-
   .header {
+    padding: 12px 16px;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
   }
 
   .back-btn {
@@ -394,17 +496,14 @@ onMounted(() => {
     font-size: 11px;
   }
 
+  .slider-view {
+    padding: 0 10px;
+  }
+
   .nav-btn {
-    padding: 15px 10px;
-    font-size: 18px;
-  }
-
-  .nav-btn.prev {
-    left: 0;
-  }
-
-  .nav-btn.next {
-    right: 0;
+    width: 40px;
+    height: 80px;
+    font-size: 24px;
   }
 
   .thumbnails img {

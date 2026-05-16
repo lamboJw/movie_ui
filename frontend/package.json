@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && powershell -Command \"if (Test-Path ../public/assets) { Remove-Item ../public/assets -Recurse -Force }; Copy-Item -Path dist/* -Destination ../public/ -Recurse -Force\"",
+    "build": "vite build && rm -rf ../public/assets && cp -r dist/* ../public/",
     "preview": "vite preview"
   },
   "dependencies": {

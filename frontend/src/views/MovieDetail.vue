@@ -1,27 +1,17 @@
 <template>
   <div class="movie-detail" v-if="movie">
-    <button @click="goBack" class="back-btn">← 返回</button>
+    <button @click="$router.back()" class="back-btn">← 返回</button>
 
     <div class="detail-content">
       <div class="poster">
         <img :src="movie.thumb || 'https://via.placeholder.com/300x450?text=No+Image'" :alt="movie.title">
+        <button @click="playMovie" class="play-btn">▶ 播放</button>
       </div>
 
       <div class="info">
         <h1>{{ movie.title }}</h1>
         <p v-if="movie.original_title" class="original-title">{{ movie.original_title }}</p>
         <p v-if="movie.folder" class="folder">📁 {{ movie.folder }}</p>
-
-        <!-- 播放器 -->
-        <div v-if="movie.video_path" class="player-container">
-          <video 
-            class="video-player" 
-            controls 
-            :src="videoUrl"
-          >
-            您的浏览器不支持 video 标签
-          </video>
-        </div>
 
         <div class="meta">
           <span v-if="movie.year">{{ movie.year }}</span>
@@ -58,39 +48,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { movieApi } from '../api/movieApi'
 
 const route = useRoute()
 const router = useRouter()
 const movie = ref(null)
-
-// 视频路径
-const videoUrl = computed(() => {
-  return movie.value?.video_path || null
-})
-
-const goBack = () => {
-  // 恢复之前浏览的路径和模式
-  const lastPath = sessionStorage.getItem('lastBrowsePath') || ''
-  const lastMode = sessionStorage.getItem('lastViewMode') || 'list'
-  
-  if (lastMode === 'folder') {
-    if (lastPath) {
-      router.push({ name: 'home', query: { mode: 'folder', path: lastPath } })
-    } else {
-      router.push({ name: 'home', query: { mode: 'folder' } })
-    }
-  } else {
-    // 列表模式
-    if (lastPath) {
-      router.push({ name: 'home', query: { mode: 'list', path: lastPath } })
-    } else {
-      router.push({ name: 'home' })
-    }
-  }
-}
 
 onMounted(async () => {
   try {
@@ -100,6 +64,10 @@ onMounted(async () => {
     console.error('获取电影详情失败', e)
   }
 })
+
+const playMovie = () => {
+  router.push(`/play/${route.params.id}`)
+}
 </script>
 
 <style scoped>
@@ -125,24 +93,41 @@ onMounted(async () => {
   margin-top: 20px;
 }
 
+.poster {
+  position: relative;
+}
+
 .poster img {
   width: 300px;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  display: block;
+}
+
+.play-btn {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 28px;
+  background: #e94560;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s, transform .2s;
+  white-space: nowrap;
+}
+
+.play-btn:hover {
+  background: #d63850;
+  transform: translateX(-50%) scale(1.05);
 }
 
 .info {
   flex: 1;
-}
-
-.player-container {
-  margin: 20px 0;
-}
-
-.video-player {
-  width: 100%;
-  max-width: 800px;
-  border-radius: 8px;
 }
 
 .info h1 {
@@ -261,6 +246,11 @@ onMounted(async () => {
     display: block;
   }
 
+  .play-btn {
+    font-size: 14px;
+    padding: 8px 20px;
+  }
+
   .info h1 {
     font-size: 22px;
   }
@@ -268,10 +258,6 @@ onMounted(async () => {
   .meta {
     flex-wrap: wrap;
     gap: 10px;
-  }
-
-  .video-player {
-    max-width: 100%;
   }
 
   .actor-list {

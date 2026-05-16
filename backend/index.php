@@ -26,6 +26,8 @@ if ($path === '/api/scan_cli' || strpos($path, '/api/scan_cli') !== false) {
     require_once __DIR__ . '/api/image_sets.php';
 } elseif (strpos($path, '/api/image_set') !== false) {
     require_once __DIR__ . '/api/image_set.php';
+} elseif (strpos($path, '/api/stream') !== false) {
+    require_once __DIR__ . '/api/stream.php';
 } else {
     // 尝试提供前端静态文件
     $path = __DIR__ . '/public' . ($requestUri === '/' ? '/index.html' : $requestUri);
