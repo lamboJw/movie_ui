@@ -2,22 +2,39 @@
   <div id="app">
     <header class="header">
       <h1>🎬 电影库</h1>
-      <button @click="getRandomMovie" class="random-btn">🎲 随机一部</button>
+      <div class="header-actions">
+        <button @click="getRandomMovie" class="action-btn">🎲 随机一部</button>
+        <button @click="triggerScan" class="action-btn scan-btn">📡 扫描资源</button>
+      </div>
     </header>
     <router-view></router-view>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const scanning = ref(false)
 
 const getRandomMovie = async () => {
   const res = await fetch('/api/random')
   const movie = await res.json()
   if (movie.id) {
     router.push(`/movie/${movie.id}`)
+  }
+}
+
+const triggerScan = async () => {
+  if (scanning.value) return
+  scanning.value = true
+  try {
+    await fetch('/api/scan')
+  } catch (e) {
+    console.error('扫描失败', e)
+  } finally {
+    scanning.value = false
   }
 }
 </script>
@@ -49,9 +66,13 @@ body {
   color: #e94560;
 }
 
-.random-btn {
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
   padding: 10px 20px;
-  background: linear-gradient(135deg, #e94560, #c23152);
   color: white;
   border: none;
   border-radius: 8px;
@@ -60,8 +81,16 @@ body {
   transition: transform 0.2s;
 }
 
-.random-btn:hover {
+.action-btn:hover {
   transform: scale(1.05);
+}
+
+.action-btn:first-child {
+  background: linear-gradient(135deg, #e94560, #c23152);
+}
+
+.scan-btn {
+  background: linear-gradient(135deg, #4a9, #2d7a5e);
 }
 
 #app {
@@ -79,7 +108,12 @@ body {
     font-size: 20px;
   }
 
-  .random-btn, .scan-btn {
+  .header-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .action-btn {
     padding: 8px 12px;
     font-size: 12px;
   }

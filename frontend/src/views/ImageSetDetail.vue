@@ -34,10 +34,12 @@
       @mouseleave="startNavHide"
     >
       <div class="slider-image-area" :style="{ maxWidth: imageWidth + '%' }">
-        <div class="slider-stage">
-          <Transition :name="slideDirection">
-            <img :key="currentIndex" :src="currentImage" @error="handleImageError" />
-          </Transition>
+        <div class="slider-stage" ref="stageRef" @transitionend="onTrackEnd">
+          <div class="slider-track" :style="trackStyle">
+            <div class="slider-item" v-for="item in slideItems" :key="item.key">
+              <img :src="item.url" @error="handleImageError" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -109,7 +111,30 @@ let navHideTimer = null
 let touchStartX = 0
 let touchStartY = 0
 let swiping = false
-const slideDirection = ref('slide-left')
+
+const stageRef = ref(null)
+const dragOffset = ref(0)
+const isSnapping = ref(false)
+const snapTarget = ref(0)
+
+const slideItems = computed(() => {
+  const images = imageSet.value.images || []
+  const idx = currentIndex.value
+  const items = []
+  if (idx > 0) items.push({ key: 'p' + idx, url: images[idx - 1] })
+  items.push({ key: idx, url: images[idx] })
+  if (idx < images.length - 1) items.push({ key: 'n' + idx, url: images[idx + 1] })
+  return items
+})
+
+const trackStyle = computed(() => {
+  const ci = slideItems.value.findIndex(i => i.key === currentIndex.value)
+  const base = -(ci >= 0 ? ci : 0) * 100
+  return {
+    transform: `translateX(${base + dragOffset.value}%)`,
+    transition: isSnapping.value ? 'transform .35s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none'
+  }
+})
 
 function showNav() {
   navVisible.value = true
@@ -127,6 +152,7 @@ function onSliderTouchStart(e) {
   touchStartX = e.touches[0].clientX
   touchStartY = e.touches[0].clientY
   swiping = false
+  isSnapping.value = false
   showNav()
 }
 
@@ -137,25 +163,56 @@ function onSliderTouchMove(e) {
   if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
     swiping = true
     e.preventDefault()
+    const rect = stageRef.value?.getBoundingClientRect()
+    if (rect) {
+      dragOffset.value = (dx / rect.width) * 100
+    }
   }
 }
 
 function onSliderTouchEnd() {
-  if (!swiping || !touchStartX) return
+  if (!swiping || !touchStartX) {
+    touchStartX = 0
+    return
+  }
   if (navHideTimer) clearTimeout(navHideTimer)
-  const rect = document.querySelector('.slider-view')?.getBoundingClientRect()
-  if (!rect) return
-  const dx = touchStartX - rect.left
-  const ratio = dx / rect.width
-  if (ratio < 0.5) {
-    prevImage()
+
+  const absDrag = Math.abs(dragOffset.value)
+  if (absDrag > 30) {
+    if (dragOffset.value > 0 && currentIndex.value > 0) {
+      isSnapping.value = true
+      dragOffset.value = 100
+      snapTarget.value = -1
+    } else if (dragOffset.value < 0 && currentIndex.value < imageSet.value.images.length - 1) {
+      isSnapping.value = true
+      dragOffset.value = -100
+      snapTarget.value = 1
+    } else {
+      isSnapping.value = true
+      dragOffset.value = 0
+      snapTarget.value = 0
+    }
   } else {
-    nextImage()
+    isSnapping.value = true
+    dragOffset.value = 0
+    snapTarget.value = 0
   }
   touchStartX = 0
   touchStartY = 0
   swiping = false
   showNav()
+}
+
+function onTrackEnd() {
+  if (!isSnapping.value) return
+  isSnapping.value = false
+  dragOffset.value = 0
+  if (snapTarget.value === -1) {
+    currentIndex.value--
+  } else if (snapTarget.value === 1) {
+    currentIndex.value++
+  }
+  snapTarget.value = 0
 }
 
 const currentImage = computed(() => imageSet.value.images?.[currentIndex.value] || '')
@@ -174,21 +231,31 @@ const startIndex = computed(() => Math.max(0, currentIndex.value - 3))
 
 const prevImage = () => {
   if (currentIndex.value > 0) {
-    slideDirection.value = 'slide-right'
-    currentIndex.value--
+    isSnapping.value = true
+    dragOffset.value = 100
+    snapTarget.value = -1
   }
 }
 
 const nextImage = () => {
   if (currentIndex.value < imageSet.value.images.length - 1) {
-    slideDirection.value = 'slide-left'
-    currentIndex.value++
+    isSnapping.value = true
+    dragOffset.value = -100
+    snapTarget.value = 1
   }
 }
 
 const goToImage = (idx) => {
-  slideDirection.value = idx > currentIndex.value ? 'slide-left' : 'slide-right'
-  currentIndex.value = idx
+  const diff = idx - currentIndex.value
+  if (diff === 1) {
+    nextImage()
+  } else if (diff === -1) {
+    prevImage()
+  } else if (diff !== 0) {
+    currentIndex.value = idx
+    dragOffset.value = 0
+    isSnapping.value = false
+  }
 }
 
 const handleImageError = (e) => {
@@ -361,38 +428,23 @@ onMounted(() => {
 }
 
 .slider-stage {
-  display: grid;
   width: 100%;
   overflow: hidden;
 }
 
-.slider-stage img {
-  grid-area: 1 / 1;
+.slider-track {
+  display: flex;
+}
+
+.slider-item {
+  min-width: 100%;
+}
+
+.slider-item img {
+  display: block;
   width: 100%;
   height: auto;
   object-fit: contain;
-  border-radius: 0;
-}
-
-.slide-left-enter-active,
-.slide-left-leave-active,
-.slide-right-enter-active,
-.slide-right-leave-active {
-  transition: transform .35s ease;
-}
-
-.slide-left-enter-from {
-  transform: translateX(100%);
-}
-.slide-left-leave-to {
-  transform: translateX(-100%);
-}
-
-.slide-right-enter-from {
-  transform: translateX(-100%);
-}
-.slide-right-leave-to {
-  transform: translateX(100%);
 }
 
 .nav-btn {
