@@ -74,6 +74,9 @@ class VideoScanner {
                     $results['videos']['scanned']++;
                     $videoPath = $item->getPathname();
                     $nfoPath = $this->findNfoFileLocal($videoPath);
+                    if (!$nfoPath) {
+                        $nfoPath = $this->createNfoForVideo($videoPath);
+                    }
                     if ($nfoPath) {
                         $this->processVideoLocal($videoPath, $nfoPath, $results);
                     }
@@ -234,7 +237,66 @@ class VideoScanner {
         return false;
     }
 
-/**
+    /**
+     * 为没有nfo的视频自动创建最小化nfo文件
+     */
+    private function createNfoForVideo($videoPath) {
+        $dir = dirname($videoPath);
+        $filename = pathinfo($videoPath, PATHINFO_FILENAME);
+        $nfoPath = $dir . DIRECTORY_SEPARATOR . $filename . '.nfo';
+
+        $title = $this->cleanTitle($filename);
+
+        // 寻找同目录下的图片作为thumb
+        $thumb = '';
+        $imageExts = $this->config['image_extensions'] ?? ['jpg', 'jpeg', 'png', 'webp'];
+        foreach ($imageExts as $ext) {
+            $candidates = [
+                $dir . '/' . $filename . '.' . $ext,
+                $dir . '/' . $filename . '-poster.' . $ext,
+                $dir . '/' . 'poster.' . $ext,
+                $dir . '/' . 'folder.' . $ext,
+            ];
+            foreach ($candidates as $c) {
+                if (file_exists($c)) {
+                    $thumb = basename($c);
+                    break 2;
+                }
+            }
+        }
+
+        $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><movie></movie>');
+        $xml->addChild('title', htmlspecialchars($title, ENT_XML1, 'UTF-8'));
+        $xml->addChild('originaltitle', htmlspecialchars($filename, ENT_XML1, 'UTF-8'));
+        if ($thumb) {
+            $xml->addChild('thumb', htmlspecialchars($thumb, ENT_XML1, 'UTF-8'));
+        }
+
+        $dom = dom_import_simplexml($xml)->ownerDocument;
+        $dom->formatOutput = true;
+        $xmlStr = $dom->saveXML();
+
+        if (file_put_contents($nfoPath, $xmlStr) !== false) {
+            return $nfoPath;
+        }
+        return null;
+    }
+
+    /**
+     * 从文件名中清理出标题（去掉扩展名、年份、分辨率等常见杂质）
+     */
+    private function cleanTitle($filename) {
+        // 去掉括号和方括号内的内容，如 (1080p), [WEB-DL] 等
+        $title = preg_replace('/[\(\[][^\)\]]*[\)\]]/', '', $filename);
+        // 去掉常见关键词
+        $title = preg_replace('/\b(1080[pi]|720[pi]|2160[pi]|4K|WEB[-.]?DL|BluRay|BRRip|HDRip|DVDRip|x264|x265|HEVC|AAC|DD5\.1|HDTV|H264|H\.264)\b/i', '', $title);
+        // 去掉多余空格和连接符
+        $title = preg_replace('/[\._\s-]+/', ' ', $title);
+        $title = trim($title);
+        return $title ?: $filename;
+    }
+
+    /**
      * 处理本地视频
      */
     private function processVideoLocal($videoPath, $nfoPath, &$results) {
